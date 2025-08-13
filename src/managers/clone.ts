@@ -4,6 +4,7 @@ import store from "@/store";
 import { Note } from "@/models/note";
 import globalEventEmitter from "@/eventEmitter";
 import Manager from "./abstract";
+import { SelectedElement } from "@/types";
 // export enum CloneValidStateCode {
 //     OK,
 //     Overlap,
@@ -131,40 +132,56 @@ export default class CloneManager extends Manager {
         if (selectionManager.selectedElements.length == 0) {
             throw new Error("请选择元素");
         }
-        const minTime = selectionManager.selectedElements.reduce<Beats>((prev, curr) => {
-            if (isLessThanBeats(prev, curr.startTime)) {
-                return prev;
+        // const minTime = selectionManager.selectedElements.reduce<Beats>((prev, curr) => {
+        //     if (isLessThanBeats(prev, curr.startTime)) {
+        //         return prev;
+        //     }
+        //     else {
+        //         return curr.startTime;
+        //     }
+        // }, [0, 0, 1]);
+        // const maxTime = selectionManager.selectedElements.reduce<Beats>((prev, curr) => {
+        //     if (isGreaterThanBeats(prev, curr.endTime)) {
+        //         return prev;
+        //     }
+        //     else {
+        //         return curr.endTime;
+        //     }
+        // }, [0, 0, 1]);
+        let minTime: Beats = [Infinity, 0, 1];
+        let maxTime: Beats = [-Infinity, 0, 1];
+        for (let i = 0; i < selectionManager.selectedElements.length; i++) {
+            const element = selectionManager.selectedElements[i];
+            if (isLessThanBeats(element.startTime, minTime)) {
+                minTime = element.startTime;
             }
-            else {
-                return curr.startTime;
+            if (isGreaterThanBeats(element.endTime, maxTime)) {
+                maxTime = element.endTime;
             }
-        }, [0, 0, 1]);
-        const maxTime = selectionManager.selectedElements.reduce<Beats>((prev, curr) => {
-            if (isGreaterThanBeats(prev, curr.endTime)) {
-                return prev;
-            }
-            else {
-                return curr.endTime;
-            }
-        }, [0, 0, 1]);
+        }
         const length = subBeats(maxTime, minTime);
         historyManager.group("重复");
+        const elements: SelectedElement[] = [];
         for (const element of selectionManager.selectedElements) {
             if (element instanceof Note) {
                 const noteObject = element.toObject();
                 noteObject.startTime = addBeats(noteObject.startTime, length);
                 noteObject.endTime = addBeats(noteObject.endTime, length);
-                store.addNote(noteObject, element.judgeLineNumber);
-                historyManager.recordAddNote(element.id);
+                const note = store.addNote(noteObject, element.judgeLineNumber);
+                historyManager.recordAddNote(note.id);
+                elements.push(note);
             }
             else {
                 const eventObject = element.toObject();
                 eventObject.startTime = addBeats(eventObject.startTime, length);
                 eventObject.endTime = addBeats(eventObject.endTime, length);
-                store.addEvent(eventObject, element.type, element.eventLayerId, element.judgeLineNumber);
-                historyManager.recordAddEvent(element.id);
+                const event = store.addEvent(eventObject, element.type, element.eventLayerId, element.judgeLineNumber);
+                historyManager.recordAddEvent(event.id);
+                elements.push(event);
             }
         }
         historyManager.ungroup();
+        selectionManager.unselectAll();
+        selectionManager.select(...elements);
     }
 }
