@@ -4,6 +4,7 @@ import globalEventEmitter from "@/eventEmitter";
 import { Note } from "@/models/note";
 import store from "@/store";
 import Manager from "./abstract";
+import { BaseEventLayer, baseEventTypes, extendedEventTypes } from "@/models/eventLayer";
 
 export default class SelectionManager extends Manager {
     readonly selectedElements: SelectedElement[] = reactive([]);
@@ -21,7 +22,7 @@ export default class SelectionManager extends Manager {
     }
     select(...elements: SelectedElement[]) {
         this.selectedElements.push(...elements);
-        if(this.selectedElements.length > 0) 
+        if (this.selectedElements.length > 0)
             globalEventEmitter.emit("SELECTION_UPDATE");
     }
     unselect(...elements: SelectedElement[]) {
@@ -34,7 +35,7 @@ export default class SelectionManager extends Manager {
                 console.warn("SelectionManager: unselect failed");
             }
         }
-        if(this.selectedElements.length === 0)
+        if (this.selectedElements.length === 0)
             globalEventEmitter.emit("SELECTION_UPDATE");
     }
     isSelected(element: SelectedElement) {
@@ -72,20 +73,18 @@ export default class SelectionManager extends Manager {
         for (const element of stateManager.currentJudgeLine.notes) {
             this.selectedElements.push(element);
         }
-        for (const element of stateManager.currentEventLayer.moveXEvents) {
-            this.selectedElements.push(element);
+        const eventLayer = stateManager.currentEventLayer;
+        if (eventLayer instanceof BaseEventLayer) {
+            for(const type of baseEventTypes){
+                const events = eventLayer.getEventsByType(type);
+                this.selectedElements.push(...events);
+            }
         }
-        for (const element of stateManager.currentEventLayer.moveYEvents) {
-            this.selectedElements.push(element);
-        }
-        for (const element of stateManager.currentEventLayer.rotateEvents) {
-            this.selectedElements.push(element);
-        }
-        for (const element of stateManager.currentEventLayer.alphaEvents) {
-            this.selectedElements.push(element);
-        }
-        for (const element of stateManager.currentEventLayer.speedEvents) {
-            this.selectedElements.push(element);
+        else {
+            for(const type of extendedEventTypes){
+                const events = eventLayer.getEventsByType(type);
+                this.selectedElements.push(...events);
+            }
         }
         globalEventEmitter.emit("SELECTION_UPDATE");
     }

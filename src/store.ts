@@ -2,7 +2,7 @@ import { Ref, ref } from "vue";
 import { ChartPackage } from "./models/chartPackage";
 import { ResourcePackage } from "./models/resourcePackage";
 import { INote } from "./models/note";
-import { IEvent, NumberEvent } from "./models/event";
+import { IEvent } from "./models/event";
 import type { useRoute } from "vue-router";
 import globalEventEmitter from "./eventEmitter";
 import type ChartRenderer from "./managers/render/chartRenderer";
@@ -206,7 +206,7 @@ class Store {
         if(!eventLayer){
             throw new Error(`不存在编号为${eventLayerId}的事件层`);
         }
-        return eventLayer.addEvent(eventObject, eventType, id) as NumberEvent;
+        return eventLayer.addEvent(eventObject, eventType, id);
     }
     removeEvent(id: string) {
         const parsedId = this.parseEventId(id);

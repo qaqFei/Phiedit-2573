@@ -4,9 +4,6 @@
             {{ model.type }}事件编辑
         </Teleport>
         事件ID： {{ model.id }}
-        <em v-if="model.type == 'paint'">
-            暂不支持paint事件，该事件的所有编辑都是无效的
-        </em>
         <MyInput
             ref="inputStartEndTime"
             v-model="inputEvent.startEndTime"
@@ -17,14 +14,34 @@
                 时间
             </template>
         </MyInput>
-        <MyInput
+        <!-- <MyInput
             ref="inputStartEnd"
             v-model="inputEvent.startEnd"
             @change="createHistory()"
             @input="updateModel('start', 'end')"
         >
             <template #prepend>
-                数值
+                颜色
+            </template>
+        </MyInput> -->
+        <MyInput
+            ref="inputStart"
+            v-model="inputEvent.start"
+            @change="createHistory()"
+            @input="updateModel('start')"
+        >
+            <template #prepend>
+                起始文字
+            </template>
+        </MyInput>
+        <MyInput
+            ref="inputEnd"
+            v-model="inputEvent.end"
+            @change="createHistory()"
+            @input="updateModel('end')"
+        >
+            <template #prepend>
+                结束文字
             </template>
         </MyInput>
         <MySwitch
@@ -57,9 +74,6 @@
         >
             禁用
         </MySwitch>
-        <MyButton @click="reverse">
-            取相反数（Alt + A）
-        </MyButton>
         <MyButton @click="swap">
             交换起始和结束值（Alt + S）
         </MyButton>
@@ -77,7 +91,7 @@
 </template>
 <script setup lang="ts">
 import MyButton from '@/myElements/MyButton.vue';
-import { IEvent, NumberEvent } from "../models/event";
+import { IEvent, TextEvent } from "../models/event";
 import MyInput from "../myElements/MyInput.vue";
 import MySwitch from "../myElements/MySwitch.vue";
 import MySelectEasing from "@/myElements/MySelectEasing.vue";
@@ -86,20 +100,20 @@ import { onBeforeUnmount, onMounted, reactive, useTemplateRef } from "vue";
 import { Ref, watch } from "vue";
 import globalEventEmitter from "@/eventEmitter";
 import store from "@/store";
-const model = defineModel<NumberEvent>({
+const model = defineModel<TextEvent>({
     required: true,
-}) as Ref<NumberEvent>;
+}) as Ref<TextEvent>;
 const props = defineProps<{
     titleTeleport: string;
 }>();
 const inputStartEndTime = useTemplateRef("inputStartEndTime");
-const inputStartEnd = useTemplateRef("inputStartEnd");
+const inputStart = useTemplateRef("inputStart");
+const inputEnd = useTemplateRef("inputEnd");
 const switchBezier = useTemplateRef("switchBezier");
 const selectEasing = useTemplateRef("selectEasing");
 const switchDisabled = useTemplateRef("switchDisabled");
 interface EventExtends {
     startEndTime: string;
-    startEnd: string;
     easingLeftRight: number[];
 }
 const seperator = " ";
@@ -122,14 +136,15 @@ watch(model, () => {
         (inputEvent[attr] as any) = model.value[attr];
     }
     inputStartEndTime.value?.updateShowedValue();
-    inputStartEnd.value?.updateShowedValue();
+    inputStart.value?.updateShowedValue();
+    inputEnd.value?.updateShowedValue();
     switchBezier.value?.updateShowedValue();
     selectEasing.value?.updateShowedValue();
     switchDisabled.value?.updateShowedValue();
 }, {
     deep: false
 });
-const inputEvent: IEvent<number> & EventExtends = reactive({
+const inputEvent: IEvent<string> & EventExtends = reactive({
     startTime: model.value.startTime,
     endTime: model.value.endTime,
     start: model.value.start,
@@ -159,29 +174,6 @@ const inputEvent: IEvent<number> & EventExtends = reactive({
             return;
         }
         this.endTime = validateBeats(parseBeats(end));
-    },
-    get startEnd() {
-        // 如果开始数值和结束数值相同，返回这个相同的数值
-        if (this.start === this.end) {
-            return this.start.toString();
-        }
-        return this.start + seperator + this.end;
-    },
-    set startEnd(value: string) {
-        const [start, end] = value.split(seperator);
-        if (!start) return;
-        const startValue = parseFloat(start);
-        if (isNaN(startValue)) return;
-        // 如果只输入了一个数值，则将结束数值设置为开始数值
-        if (!end) {
-            this.start = startValue;
-            this.end = this.start;
-            return;
-        }
-        const endValue = parseFloat(end);
-        if (isNaN(endValue)) return;
-        this.start = startValue;
-        this.end = endValue;
     },
     get easingLeftRight() {
         return [this.easingLeft, this.easingRight];
@@ -235,7 +227,6 @@ function updateModel<K extends keyof IEvent<number>>(...attrNames: K[]) {
     // historyManager.ungroup();
 }
 onMounted(() => {
-    globalEventEmitter.on("REVERSE", reverse);
     globalEventEmitter.on("SWAP", swap);
 });
 onBeforeUnmount(() => {
@@ -245,15 +236,8 @@ onBeforeUnmount(() => {
     catch (e) {
         console.error(e);
     }
-    globalEventEmitter.off("REVERSE", reverse);
     globalEventEmitter.off("SWAP", swap);
 });
-function reverse() {
-    inputEvent.start = -inputEvent.start;
-    inputEvent.end = -inputEvent.end;
-    updateModel("start", "end");
-    createHistory();
-}
 function swap() {
     [inputEvent.start, inputEvent.end] = [inputEvent.end, inputEvent.start];
     updateModel("start", "end");

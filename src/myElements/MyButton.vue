@@ -4,7 +4,6 @@
         v-bind="$attrs"
         :class="props.class"
         :type="props.type"
-        @focus="onFocus"
         @click="onClick"
     >
         <slot />
@@ -19,11 +18,9 @@ const props = defineProps<{
 }>();
 const emit = defineEmits(['click']);
 const button = useTemplateRef('button');
-function onFocus() {
-    // 聚焦时自动失焦，使其无法被聚焦，避免按空格键触发按钮的问题
-    button.value?.$el?.blur();
-}
 function onClick() {
     emit('click');
+    // 点击后自动失焦，使其无法被聚焦，避免按空格键触发按钮的问题
+    button.value?.$el?.blur();
 }
 </script>

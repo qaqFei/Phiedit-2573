@@ -4,6 +4,7 @@ import store from "@/store";
 import { BoxWithData } from "@/tools/box";
 import { SelectedElement } from "@/types";
 import Manager from "./abstract";
+import { BaseEventLayer, baseEventTypes, extendedEventTypes } from "@/models/eventLayer";
 
 export default class BoxesManager extends Manager {
     calculateBoxes(): BoxWithData<SelectedElement>[] {
@@ -35,11 +36,18 @@ export default class BoxesManager extends Manager {
                 boxes.push(box);
             }
         }
-        const types = ["moveX", "moveY", "rotate", "alpha", "speed"] as const;
+        const types = (() => {
+            const eventLayer = stateManager.currentEventLayer;
+            if (eventLayer instanceof BaseEventLayer) {
+                return baseEventTypes;
+            }
+            else {
+                return extendedEventTypes;
+            }
+        })()
         for (const [column, type] of Object.entries(types)) {
-            const attrName = `${type}Events` as const;
-            const events = stateManager.currentEventLayer[attrName];
-            const eventX = Constants.eventsViewBox.width * (+column + 0.5) / 5 + Constants.eventsViewBox.left;
+            const events = stateManager.currentEventLayer.getEventsByType(type);
+            const eventX = Constants.eventsViewBox.width * (+column + 0.5) / types.length + Constants.eventsViewBox.left;
             for (const event of events) {
                 const eventStartY = stateManager.getRelativePositionYOfSeconds(event.cachedStartSeconds);
                 const eventEndY = stateManager.getRelativePositionYOfSeconds(event.cachedEndSeconds);

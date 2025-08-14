@@ -120,13 +120,12 @@ export default class CloneManager extends Manager {
             beats = addBeats(beats, this.options.timeDelta);
             i = (i + 1) % this.options.targetJudgeLines.length;
         }
-        historyManager.ungroup();
-
         // 不保留源元素
         selectionManager.deleteSelection();
+        historyManager.ungroup();
     }
     repeat() {
-        // 把选中的元素复制一遍并粘贴（有bug，暂不使用）
+        // 把选中的元素复制一遍并粘贴
         const selectionManager = store.useManager("selectionManager");
         const historyManager = store.useManager("historyManager");
         if (selectionManager.selectedElements.length == 0) {

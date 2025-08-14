@@ -25,7 +25,7 @@ export default class StateManager extends Manager {
         /** 选中的判定线号 */
         currentJudgeLineNumber: 0,
         /** 选中的事件层级编号 */
-        currentEventLayerNumber: 0,
+        currentEventLayerId: '0',
         /** 正在放置的note类型 */
         currentNoteType: NoteType.Tap
     }
@@ -54,7 +54,7 @@ export default class StateManager extends Manager {
             startTime: undefined,
             endTime: undefined,
             density: 16,
-            code:`\
+            code: `\
 // 请使用Javascript代码编写出动画效果，下面仅为示例
 const x = Math.sin(t * Math.PI * 2) * 400;
 const y = Math.cos(t * Math.PI * 2) * 400;
@@ -100,19 +100,10 @@ return {
         })
     }
     get currentJudgeLine() {
-        const chart = store.useChart();
-        if (this._state.currentJudgeLineNumber < 0 || this._state.currentJudgeLineNumber >= this.judgeLinesCount) {
-            console.error("Invalid current judge line number, returning the first judge line.");
-            this._state.currentJudgeLineNumber = 0; // Reset to a valid state
-        }
-        return chart.judgeLineList[this._state.currentJudgeLineNumber];
+        return store.getJudgeLineById(this._state.currentJudgeLineNumber);
     }
     get currentEventLayer() {
-        if (this._state.currentEventLayerNumber < 0 || this._state.currentEventLayerNumber >= this.eventLayersCount) {
-            console.error("Invalid current event layer number, returning the first event layer.");
-            this._state.currentEventLayerNumber = 0; // Reset to a valid state
-        }
-        return this.currentJudgeLine.eventLayers[this._state.currentEventLayerNumber];
+        return this.currentJudgeLine.getEventLayerById(this._state.currentEventLayerId);
     }
     get judgeLinesCount() {
         const chart = store.useChart();

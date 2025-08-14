@@ -38,16 +38,6 @@
                     />
                 </template>
             </div>
-            <p
-                :style="{
-                    color: fpsColor,
-                    display: 'block',
-                    whiteSpace: 'nowrap',
-                }"
-                class="fps"
-            >
-                FPS: {{ fps.toFixed(2) }}
-            </p>
             <ElRadioGroup
                 v-if="resourcePackageRef"
                 v-model="stateManager.state.currentNoteType"
@@ -103,6 +93,16 @@
                     <p>Hold（R）</p>
                 </ElRadioButton>
             </ElRadioGroup>
+            <span
+                :style="{
+                    color: fpsColor,
+                    display: 'block',
+                    whiteSpace: 'nowrap',
+                }"
+                class="fps"
+            >
+                FPS: {{ fps.toFixed(2) }}
+            </span>
             <MySelect
                 v-if="audioRef"
                 v-model="audioRef.playbackRate"
@@ -170,12 +170,37 @@
                     竖线数
                 </template>
             </MyInputNumber>
-            <p>
-                COMBO: {{ combo }}
+            <p class="text">
+                COMBO: {{ combo }}, 
+                SCORE: {{ round(score).toString().padStart(7, '0') }}<br>
             </p>
-            <p>
-                SCORE: {{ round(score).toString().padStart(7, '0') }}
-            </p>
+            <MyGridContainer
+                :columns="5"
+                :gap="5"
+            >
+                <MyButton
+                    v-for="i in min([stateManager.eventLayersCount, 4])"
+                    :key="i - 1 + (u ? 0 : 0)"
+                    type="primary"
+                    :plain="i - 1 != parseInt(stateManager.state.currentEventLayerId)"
+                    @click="stateManager.state.currentEventLayerId = (i - 1).toString(), update()"
+                >
+                    {{ i - 1 }}
+                </MyButton>
+                <MyButton
+                    type="warning"
+                    :plain="stateManager.state.currentEventLayerId != 'X'"
+                    @click="stateManager.state.currentEventLayerId = 'X', update()"
+                >
+                    特殊
+                </MyButton>
+                <!-- <MyButton
+                            type="success"
+                            @click="stateManager.currentJudgeLine.addEventLayer(), update()"
+                        >
+                            +
+                        </MyButton> -->
+            </MyGridContainer>
         </ElHeader>
         <ElAside id="left">
             <div
@@ -244,6 +269,16 @@
                 />
                 <NumberEventEditPanel
                     v-else-if="selectionManager.selectedElements[0] instanceof NumberEvent"
+                    v-model="selectionManager.selectedElements[0]"
+                    title-teleport=".title-left"
+                />
+                <ColorEventEditPanel
+                    v-else-if="selectionManager.selectedElements[0] instanceof ColorEvent"
+                    v-model="selectionManager.selectedElements[0]"
+                    title-teleport=".title-left"
+                />
+                <TextEventEditPanel
+                    v-else-if="selectionManager.selectedElements[0] instanceof TextEvent"
                     v-model="selectionManager.selectedElements[0]"
                     title-teleport=".title-left"
                 />
@@ -337,7 +372,7 @@
                             :key="i - 1 + (u ? 0 : 0)"
                             :type="(['primary', 'warning', 'danger'] as const)[Math.floor((i - 1) / 10) % 3]"
                             :plain="i - 1 != stateManager.state.currentJudgeLineNumber"
-                            @click="stateManager.state.currentJudgeLineNumber = i - 1"
+                            @click="stateManager.state.currentJudgeLineNumber = i - 1, update()"
                         >
                             {{ i - 1 }}
                         </MyButton>
@@ -347,43 +382,6 @@
                         >
                             +
                         </MyButton>
-                    </MyGridContainer>
-                    <h3>
-                        快速切换事件层级
-                    </h3>
-                    <MyGridContainer
-                        :columns="5"
-                        :gap="5"
-                    >
-                        <MyButton
-                            v-for="i in stateManager.eventLayersCount"
-                            :key="i - 1 + (u ? 0 : 0)"
-                            type="primary"
-                            :plain="i - 1 != stateManager.state.currentEventLayerNumber"
-                            @click="stateManager.state.currentEventLayerNumber = i - 1"
-                        >
-                            {{ i - 1 }}
-                        </MyButton>
-                        <MyButton
-                            type="success"
-                            @click="stateManager.currentJudgeLine.addEventLayer(), update()"
-                        >
-                            +
-                        </MyButton>
-                        <ElTooltip>
-                            <template #default>
-                                <MyButton
-                                    type="warning"
-                                    plain
-                                    disabled
-                                >
-                                    特殊
-                                </MyButton>
-                            </template>
-                            <template #content>
-                                暂不支持特殊事件层级编辑
-                            </template>
-                        </ElTooltip>
                     </MyGridContainer>
                 </div>
                 <template v-else>
@@ -473,12 +471,12 @@ import {
 } from "element-plus";
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { clamp, mean, round } from "lodash";
+import { clamp, mean, min, round } from "lodash";
 
 import MediaUtils from "@/tools/mediaUtils";
 import KeyboardUtils from "@/tools/keyboardUtils";
 
-import { NumberEvent } from "@/models/event";
+import { NumberEvent, ColorEvent, TextEvent } from "@/models/event";
 import { Note, NoteType } from "@/models/note";
 import { ResourcePackage } from "@/models/resourcePackage";
 import { ChartPackage } from "@/models/chartPackage";
@@ -530,6 +528,8 @@ import LineBinder from "@/managers/lineBinder";
 import FastBindPanel from "@/panels/FastBindPanel.vue";
 import MyImage from "@/myElements/MyImage.vue";
 import AutoplayManager from "@/managers/autoplay";
+import ColorEventEditPanel from "@/panels/ColorEventEditPanel.vue";
+import TextEventEditPanel from "@/panels/TextEventEditPanel.vue";
 
 const loadStart = inject("loadStart", () => {
     throw new Error("loadStart is not defined");
@@ -1017,7 +1017,7 @@ onMounted(() => {
     height: 100%;
     display: grid;
     grid-template-columns: 300px 1fr 300px;
-    grid-template-rows: 100px 1fr 30px;
+    grid-template-rows: 130px 1fr 30px;
     grid-template-areas:
         "header header header"
         "left main right"
@@ -1034,7 +1034,7 @@ onMounted(() => {
     grid-template-areas:
         "audio-player audio-player audio-player fps"
         "note-type-select speed-select horizontal-input vertical-input"
-        "note-type-select none none none";
+        "note-type-select text none none";
     gap: 10px;
 }
 
@@ -1046,6 +1046,10 @@ onMounted(() => {
 
 .fps {
     grid-area: fps;
+}
+
+.text {
+    grid-area: text;
 }
 
 .note-type-select {

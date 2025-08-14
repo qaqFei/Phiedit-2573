@@ -18,6 +18,21 @@ abstract class AbstractEventLayer {
     abstract getEventsByType(type: string): IEvent<unknown>[];
     abstract addEvent(event: unknown, type: string, id?: string): IEvent<unknown>;
 }
+export const baseEventTypes = [
+    "moveX",
+    "moveY",
+    "rotate",
+    "alpha",
+    "speed"
+] as const;
+export const extendedEventTypes = [
+    "scaleX",
+    "scaleY",
+    "color",
+    "paint",
+    "text",
+    // "incline"
+] as const;
 export class BaseEventLayer extends AbstractEventLayer implements IBaseEventLayer {
     moveXEvents: NumberEvent[] = []
     moveYEvents: NumberEvent[] = []
@@ -96,6 +111,16 @@ export class BaseEventLayer extends AbstractEventLayer implements IBaseEventLaye
             if ("speedEvents" in eventLayer && isArray(eventLayer.speedEvents))
                 for (const event of eventLayer.speedEvents)
                     this.addEvent(event, "speed");
+        }
+        // 普通事件层级，要求至少每个种类要有一个垫底的事件
+        for (const type of baseEventTypes) {
+            const events = this.getEventsByType(type);
+            if (events.length === 0) {
+                this.addEvent({
+                    start: 0,
+                    end: 0
+                }, type);
+            }
         }
     }
 }

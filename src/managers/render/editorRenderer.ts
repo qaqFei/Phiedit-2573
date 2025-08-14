@@ -1,5 +1,5 @@
 import { Beats, beatsToSeconds, getBeatsValue } from "@/models/beats";
-import { NumberEvent, interpolateNumberEventValue, findLastEvent } from "@/models/event";
+import { NumberEvent, interpolateNumberEventValue, findLastEvent, ColorEvent, TextEvent, interpolateColorEventValue } from "@/models/event";
 import { Note, NoteType } from "@/models/note";
 import { checkAndSort } from "@/tools/algorithm";
 import canvasUtils from "@/tools/canvasUtils";
@@ -11,6 +11,7 @@ import store from "@/store";
 import Manager from "../abstract";
 import { Box } from "@/tools/box";
 import globalEventEmitter from "@/eventEmitter";
+import { BaseEventLayer, baseEventTypes, extendedEventTypes } from "@/models/eventLayer";
 
 export default class EditorRenderer extends Manager {
     constructor() {
@@ -303,7 +304,15 @@ export default class EditorRenderer extends Manager {
         const ctx = canvasUtils.getContext(canvas);
         const drawRect = canvasUtils.drawRect.bind(ctx);
         const writeText = canvasUtils.writeText.bind(ctx);
-        const types = ["moveX", "moveY", "rotate", "alpha", "speed"] as const;
+        const types = (() => {
+            const eventLayer = stateManager.currentEventLayer;
+            if (eventLayer instanceof BaseEventLayer) {
+                return baseEventTypes;
+            }
+            else {
+                return extendedEventTypes;
+            }
+        })()
         // 这几行代码也只是为了优化性能
         const offsetY = stateManager.offsetY;
         function relative(absoluteY: number) {
@@ -314,15 +323,18 @@ export default class EditorRenderer extends Manager {
         }
         for (let column = 0; column < types.length; column++) {
             const type = types[column];
-            const attrName = `${type}Events` as const;
-            const events = stateManager.currentEventLayer[attrName];
-            const eventX = Constants.eventsViewBox.width * (column + 0.5) / 5 + Constants.eventsViewBox.left;
+            const events = stateManager.currentEventLayer.getEventsByType(type);
+            const eventX = Constants.eventsViewBox.width * (column + 0.5) / types.length + Constants.eventsViewBox.left;
+
             // 确保事件按时间顺序排列
-            checkAndSort(events, (a, b) => getBeatsValue(a.startTime) - getBeatsValue(b.startTime));
-            const eventGroups: NumberEvent[][] = [];
-            let currentGroup: NumberEvent[] = [];
+            checkAndSort<NumberEvent | ColorEvent | TextEvent>(events, (a, b) => getBeatsValue(a.startTime) - getBeatsValue(b.startTime));
+
+            // 给事件分组，首尾相连的事件为一组
+            const eventGroups: (NumberEvent | ColorEvent | TextEvent)[][] = [];
+            let currentGroup: (NumberEvent | ColorEvent | TextEvent)[] = [];
             for (let i = 0; i < events.length; i++) {
                 const event = events[i];
+                // 如果这是第一个事件，或者该事件的开始时间和前一个事件的结束时间相同，则划为一组
                 if (currentGroup.length == 0 || getBeatsValue(event.startTime) == getBeatsValue(currentGroup[currentGroup.length - 1].endTime)) {
                     currentGroup.push(event);
                 }
@@ -333,10 +345,19 @@ export default class EditorRenderer extends Manager {
             }
             eventGroups.push(currentGroup);
 
+
             for (let i = 0; i < eventGroups.length; i++) {
                 const group = eventGroups[i];
-                const minValue = Math.min(...group.flatMap(x => [x.start, x.end]));
-                const maxValue = Math.max(...group.flatMap(x => [x.start, x.end]));
+                const minValue = (() => {
+                    if (group.every(event => event instanceof NumberEvent)) {
+                        return Math.min(...group.flatMap(x => [x.start, x.end]));
+                    }
+                })();
+                const maxValue = (() => {
+                    if (group.every(event => event instanceof NumberEvent)) {
+                        return Math.max(...group.flatMap(x => [x.start, x.end]));
+                    }
+                })();
                 for (let j = 0; j < group.length; j++) {
                     const event = group[j];
                     const startSeconds = event.cachedStartSeconds;
@@ -377,30 +398,47 @@ export default class EditorRenderer extends Manager {
                             true);
                     }
 
+                    // 如果是本组的第一个事件
                     if (j == 0) {
                         // 显示开头文字
-                        writeText(event.start.toFixed(2),
-                            eventX,
-                            eventStartY - 1,
-                            30,
-                            Constants.eventNumberColor);
+                        if (event instanceof NumberEvent)
+                            writeText(event.start.toFixed(2),
+                                eventX,
+                                eventStartY - 1,
+                                30,
+                                Constants.eventTextColor);
+                        else if (event instanceof TextEvent)
+                            writeText(event.start,
+                                eventX,
+                                eventStartY - 1,
+                                30,
+                                Constants.eventTextColor);
                     }
 
+                    // 如果是本组的最后一个事件
                     if (j == group.length - 1) {
                         // 显示结尾文字
-                        writeText(event.end.toFixed(2),
-                            eventX,
-                            eventEndY,
-                            30,
-                            Constants.eventNumberColor);
+                        if (event instanceof NumberEvent)
+                            writeText(event.end.toFixed(2),
+                                eventX,
+                                eventEndY,
+                                30,
+                                Constants.eventTextColor);
+                        else if (event instanceof TextEvent)
+                            writeText(event.end,
+                                eventX,
+                                eventEndY,
+                                30,
+                                Constants.eventTextColor);
                     }
 
-                    if (minValue != maxValue) {
+                    if (minValue != undefined && maxValue != undefined && minValue != maxValue && event instanceof NumberEvent) {
                         // 显示事件曲线
                         ctx.strokeStyle = colorToString(Constants.eventLineColor);
                         ctx.lineWidth = 5;
                         ctx.beginPath();
                         for (let sec = startSeconds; sec <= endSeconds; sec += Constants.eventLinePrecision) {
+                            // 为了使事件曲线连续，如果剩余时间小于精度，则取结束时间
                             if (endSeconds - sec < Constants.eventLinePrecision) {
                                 sec = endSeconds;
                             }
@@ -413,11 +451,31 @@ export default class EditorRenderer extends Manager {
                         }
                         ctx.stroke();
                     }
+                    else if (event instanceof ColorEvent) {
+                        ctx.strokeStyle = colorToString(Constants.eventLineColor);
+                        ctx.lineWidth = 1;
+                        for (let sec = startSeconds; sec <= endSeconds; sec += Constants.eventLinePrecision) {
+                            // 为了使事件曲线连续，如果剩余时间小于精度，则取结束时间
+                            let nextSec = sec + Constants.eventLinePrecision;
+                            if (endSeconds - sec < Constants.eventLinePrecision) {
+                                nextSec = endSeconds;
+                            }
+                            const y = getRelativePositionYOfSeconds(sec);
+                            const nextY = getRelativePositionYOfSeconds(nextSec);
+                            const left = eventX - Constants.eventWidth / 4;
+                            const right = eventX + Constants.eventWidth / 4;
+                            const value = interpolateColorEventValue(event, sec);
+                            ctx.fillStyle = colorToString(value);
+                            ctx.fillRect(left, nextY, right - left, nextY - y);
+                        }
+                    }
                 }
             }
-            const currentEventValue = interpolateNumberEventValue(findLastEvent(events, seconds), seconds);
-            writeText(currentEventValue.toFixed(2), eventX, Constants.eventsViewBox.bottom - 20, 30, "white", false);
-            writeText(currentEventValue.toFixed(2), eventX, Constants.eventsViewBox.bottom - 20, 30, "blue", true);
+            if (events.every(event => event instanceof NumberEvent)) {
+                const currentEventValue = interpolateNumberEventValue(findLastEvent(events, seconds), seconds);
+                writeText(currentEventValue.toFixed(2), eventX, Constants.eventsViewBox.bottom - 20, 30, "white", false);
+                writeText(currentEventValue.toFixed(2), eventX, Constants.eventsViewBox.bottom - 20, 30, "blue", true);
+            }
         }
     }
     /** 测试专用：显示碰撞箱 */

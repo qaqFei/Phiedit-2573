@@ -44,22 +44,25 @@ export default class EventFiller extends Manager {
                 linkgroup: 0,
                 isDisabled: false,
             }
-            
+            if (stateManager._state.currentEventLayerId == 'X') {
+                stateManager._state.currentEventLayerId = '0';
+            }
+
             const moveXEvent = store.addEvent({
                 ...eventObject,
                 start: startX,
                 end: endX,
-            }, "moveX", stateManager._state.currentEventLayerNumber.toString(), stateManager._state.currentJudgeLineNumber);
+            }, "moveX", stateManager._state.currentEventLayerId, stateManager._state.currentJudgeLineNumber);
             const moveYEvent = store.addEvent({
                 ...eventObject,
                 start: startY,
                 end: endY,
-            }, "moveY", stateManager._state.currentEventLayerNumber.toString(), stateManager._state.currentJudgeLineNumber);
+            }, "moveY", stateManager._state.currentEventLayerId, stateManager._state.currentJudgeLineNumber);
             const rotateEvent = store.addEvent({
                 ...eventObject,
                 start: startAngle,
                 end: endAngle,
-            }, "rotate", stateManager._state.currentEventLayerNumber.toString(), stateManager._state.currentJudgeLineNumber);
+            }, "rotate", stateManager._state.currentEventLayerId, stateManager._state.currentJudgeLineNumber);
             historyManager.recordAddEvent(moveXEvent.id);
             historyManager.recordAddEvent(moveYEvent.id);
             historyManager.recordAddEvent(rotateEvent.id);

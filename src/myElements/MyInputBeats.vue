@@ -1,7 +1,7 @@
 <template>
     <MyInput
+        ref="inputBeats"
         v-model="inputData.beatsString"
-        v-model:when="model"
         v-bind="$attrs"
         @input="emit('input', inputData.beatsString)"
     >
@@ -35,7 +35,8 @@
 <script setup lang="ts">
 import { Beats, formatBeats, parseBeats, validateBeats } from "@/models/beats";
 import MyInput from "./MyInput.vue";
-import { reactive, useSlots } from "vue";
+import { reactive, useSlots, useTemplateRef, watch } from "vue";
+const inputBeats = useTemplateRef("inputBeats");
 const inputData = reactive({
     get beatsString() {
         return model.value == undefined ? "" : formatBeats(model.value);
@@ -51,4 +52,7 @@ const slots: ReturnType<typeof useSlots> = useSlots();
 const model = defineModel<Beats | undefined>({
     required: true
 });
+watch(model, () => {
+    inputBeats.value?.updateShowedValue();
+}, { immediate: true });
 </script>

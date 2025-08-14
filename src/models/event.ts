@@ -157,8 +157,8 @@ export class NumberEvent extends BaseEvent<number> {
     }
 }
 export class ColorEvent extends BaseEvent<RGBcolor> {
-    start: RGBcolor = [128, 128, 255];
-    end: RGBcolor = [128, 128, 255];
+    start: RGBcolor = [255, 255, 255];
+    end: RGBcolor = [255, 255, 255];
     toObject() {
         const obj = super.toObject();
         obj.start = [...this.start];

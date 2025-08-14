@@ -275,6 +275,13 @@ export class JudgeLine implements IJudgeLine {
              */
             for (const event of speedEvents) {
                 const { cachedStartSeconds: startSeconds, cachedEndSeconds: endSeconds, start, end } = event;
+                /**
+                 * 如果开始时间大于等于结束时间，则跳过该事件
+                 * 因为这个事件的时间非法，有可能会出现错误
+                 */
+                if (startSeconds >= endSeconds) {
+                    continue;
+                }
 
                 /**
                  * 跳过开始时间在目标时间之后的事件
@@ -328,6 +335,28 @@ export class JudgeLine implements IJudgeLine {
         }
         return position;
     }
+    getEventLayerById(id: string) {
+        if (id === "X") {
+            return this.extended;
+        }
+        const eventLayerNumber = parseInt(id);
+        if (isNaN(eventLayerNumber)) {
+            throw new Error(`错误的事件层编号: ${id}`)
+        }
+        if (eventLayerNumber < 0) {
+            throw new Error(`事件层编号不能小于0，但当前为${id}`)
+        }
+        if (!Number.isInteger(eventLayerNumber)){
+            throw new Error(`事件层编号必须是整数，但当前为${eventLayerNumber}`)
+        }
+        if (eventLayerNumber >= 10){
+            throw new Error(`试图访问${eventLayerNumber}号事件层，但目前最多支持10个事件层`)
+        }
+        if (eventLayerNumber >= this.eventLayers.length) {
+            throw new Error(`事件层编号超出范围: ${id}`)
+        }
+        return this.eventLayers[eventLayerNumber];
+    }
     constructor(judgeLine: unknown, readonly options: JudgeLineOptions) {
         if (isObject(judgeLine)) {
             if ("Group" in judgeLine && isNumber(judgeLine.Group))
@@ -364,11 +393,16 @@ export class JudgeLine implements IJudgeLine {
                 }
             }
         }
+        // 设置默认的空特殊事件层
         this.extended ??= new ExtendedEventLayer(null, {
             judgeLineNumber: options.judgeLineNumber,
             BPMList: options.BPMList,
             eventLayerId: 'X'
         });
+        // 如果普通事件层不足4层，自动补至4层
+        while (this.eventLayers.length < 4) {
+            this.addEventLayer();
+        }
         this.id = options.judgeLineNumber;
     }
 }

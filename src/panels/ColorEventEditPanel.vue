@@ -4,9 +4,6 @@
             {{ model.type }}事件编辑
         </Teleport>
         事件ID： {{ model.id }}
-        <em v-if="model.type == 'paint'">
-            暂不支持paint事件，该事件的所有编辑都是无效的
-        </em>
         <MyInput
             ref="inputStartEndTime"
             v-model="inputEvent.startEndTime"
@@ -24,7 +21,7 @@
             @input="updateModel('start', 'end')"
         >
             <template #prepend>
-                数值
+                颜色
             </template>
         </MyInput>
         <MySwitch
@@ -58,7 +55,7 @@
             禁用
         </MySwitch>
         <MyButton @click="reverse">
-            取相反数（Alt + A）
+            反色（Alt + A）
         </MyButton>
         <MyButton @click="swap">
             交换起始和结束值（Alt + S）
@@ -77,7 +74,7 @@
 </template>
 <script setup lang="ts">
 import MyButton from '@/myElements/MyButton.vue';
-import { IEvent, NumberEvent } from "../models/event";
+import { IEvent, ColorEvent } from "../models/event";
 import MyInput from "../myElements/MyInput.vue";
 import MySwitch from "../myElements/MySwitch.vue";
 import MySelectEasing from "@/myElements/MySelectEasing.vue";
@@ -86,9 +83,10 @@ import { onBeforeUnmount, onMounted, reactive, useTemplateRef } from "vue";
 import { Ref, watch } from "vue";
 import globalEventEmitter from "@/eventEmitter";
 import store from "@/store";
-const model = defineModel<NumberEvent>({
+import { formatRGBcolor, isEqualRGBcolors, parseRGBcolor, RGBcolor } from '@/tools/color';
+const model = defineModel<ColorEvent>({
     required: true,
-}) as Ref<NumberEvent>;
+}) as Ref<ColorEvent>;
 const props = defineProps<{
     titleTeleport: string;
 }>();
@@ -129,7 +127,7 @@ watch(model, () => {
 }, {
     deep: false
 });
-const inputEvent: IEvent<number> & EventExtends = reactive({
+const inputEvent: IEvent<RGBcolor> & EventExtends = reactive({
     startTime: model.value.startTime,
     endTime: model.value.endTime,
     start: model.value.start,
@@ -162,24 +160,24 @@ const inputEvent: IEvent<number> & EventExtends = reactive({
     },
     get startEnd() {
         // 如果开始数值和结束数值相同，返回这个相同的数值
-        if (this.start === this.end) {
-            return this.start.toString();
+        if (isEqualRGBcolors(this.start, this.end)) {
+            return formatRGBcolor(this.start);
         }
-        return this.start + seperator + this.end;
+        return formatRGBcolor(this.start) + seperator + formatRGBcolor(this.end);
     },
     set startEnd(value: string) {
         const [start, end] = value.split(seperator);
         if (!start) return;
-        const startValue = parseFloat(start);
-        if (isNaN(startValue)) return;
+        const startValue = parseRGBcolor(start);
+        if (startValue == null) return;
         // 如果只输入了一个数值，则将结束数值设置为开始数值
         if (!end) {
             this.start = startValue;
             this.end = this.start;
             return;
         }
-        const endValue = parseFloat(end);
-        if (isNaN(endValue)) return;
+        const endValue = parseRGBcolor(end);
+        if (endValue == null) return;
         this.start = startValue;
         this.end = endValue;
     },
@@ -206,6 +204,11 @@ const oldValues = {
 function createHistory() {
     // 遍历新值和旧值，找到不一样的属性
     for (const attr of attributes) {
+        if (attr == "start" || attr == "end") {
+            if (isEqualRGBcolors(inputEvent[attr], oldValues[attr])) {
+                continue;
+            }
+        }
         if (attr == "startTime" || attr == "endTime") {
             if (isEqualBeats(inputEvent[attr], oldValues[attr])) {
                 continue;
@@ -249,8 +252,10 @@ onBeforeUnmount(() => {
     globalEventEmitter.off("SWAP", swap);
 });
 function reverse() {
-    inputEvent.start = -inputEvent.start;
-    inputEvent.end = -inputEvent.end;
+    for (let i = 0; i < 3; i++) {
+        inputEvent.start[i] = 255 - inputEvent.start[i];
+        inputEvent.end[i] = 255 - inputEvent.end[i];
+    }
     updateModel("start", "end");
     createHistory();
 }

@@ -9,7 +9,8 @@ import { EasingType } from "@/models/easing";
 import Manager from "./abstract";
 import store from "@/store";
 import { addBeats, Beats, beatsToSeconds, getBeatsValue } from "@/models/beats";
-import { findLastEvent } from "@/models/event";
+import { ColorEvent, findLastEvent, NumberEvent, TextEvent } from "@/models/event";
+import { BaseEventLayer, baseEventTypes, extendedEventTypes } from "@/models/eventLayer";
 export default class MouseManager extends Manager {
     /** 鼠标的x坐标 */
     mouseX = 0
@@ -175,6 +176,7 @@ export default class MouseManager extends Manager {
     mouseLeft(x: number, y: number, mutiple: boolean) {
         const stateManager = store.useManager("stateManager");
         const selectionManager = store.useManager("selectionManager");
+        // 禁止在预览谱面时点击canvas
         if (stateManager.state.isPreviewing) return;
 
         const clickedBox = this.getClickedBox(x, y);
@@ -214,6 +216,7 @@ export default class MouseManager extends Manager {
     mouseRight(x: number, y: number) {
         const stateManager = store.useManager("stateManager");
         const selectionManager = store.useManager("selectionManager");
+        // 禁止在预览谱面时点击canvas
         if (stateManager.state.isPreviewing) return;
 
         const clickedBox = this.getClickedBox(x, y);
@@ -257,14 +260,23 @@ export default class MouseManager extends Manager {
             const chart = store.useChart();
             const time = stateManager.attatchY(y);
             const track = floor((x - Constants.eventsViewBox.left) / (Constants.eventsViewBox.right - Constants.eventsViewBox.left) * 5);
-            const type = (["moveX", "moveY", "rotate", "alpha", "speed"] as const)[track];
+            const types = (() => {
+                const eventLayer = stateManager.currentEventLayer;
+                if (eventLayer instanceof BaseEventLayer) {
+                    return baseEventTypes;
+                }
+                else {
+                    return extendedEventTypes;
+                }
+            })()
+            const type = types[track];
             const timeSeconds = beatsToSeconds(chart.BPMList, time);
-            const lastEvent = findLastEvent(stateManager.currentEventLayer[`${type}Events`], timeSeconds);
+            const lastEvent = findLastEvent<NumberEvent | ColorEvent | TextEvent>(stateManager.currentEventLayer.getEventsByType(type), timeSeconds);
             const addedEvent = store.addEvent({
                 startTime: [...time],
                 endTime: [...time],
-                start: lastEvent?.end ?? 0,
-                end: lastEvent?.end ?? 0,
+                start: lastEvent?.end,
+                end: lastEvent?.end,
                 bezier: 0,
                 bezierPoints: [0, 0, 1, 1],
                 easingLeft: 0,
@@ -272,7 +284,7 @@ export default class MouseManager extends Manager {
                 easingType: lastEvent?.easingType ?? EasingType.Linear,
                 linkgroup: 0,
                 isDisabled: false,
-            }, type, stateManager.state.currentEventLayerNumber.toString(), stateManager.state.currentJudgeLineNumber);
+            }, type, stateManager.state.currentEventLayerId, stateManager.state.currentJudgeLineNumber);
             this.addedElement = addedEvent; // Mark as unrecorded
             selectionManager.unselectAll();
             selectionManager.select(addedEvent);
