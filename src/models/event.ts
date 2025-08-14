@@ -192,10 +192,10 @@ type S = {
     cachedStartSeconds: number,
     cachedEndSeconds: number,
 }
-export function interpolateNumberEventValue(event: IEvent<number> & S | null, seconds: number) {
-    const startSeconds = event?.cachedStartSeconds ?? 0;
-    const endSeconds = event?.cachedEndSeconds ?? 0;
-    const { bezier = 0, bezierPoints = [0, 0, 1, 1], start = 0, end = 0, easingType = EasingType.Linear, easingLeft = 0, easingRight = 1 } = event ?? {};
+export function interpolateNumberEventValue(event: IEvent<number> & S, seconds: number) {
+    const startSeconds = event?.cachedStartSeconds;
+    const endSeconds = event?.cachedEndSeconds;
+    const { bezier, bezierPoints, start, end, easingType, easingLeft, easingRight } = event;
     if (endSeconds <= seconds) {
         return end;
     }
@@ -221,12 +221,10 @@ export function interpolateNumberEventValue(event: IEvent<number> & S | null, se
         return start + easingFactor * dy;
     }
 }
-export function interpolateColorEventValue(event: ColorEvent | null, seconds: number): RGBcolor {
-    const defaultColor: RGBcolor = [0xff, 0xec, 0x9f];
-    const endSeconds = event?.cachedEndSeconds ?? 0;
-    const { bezier = 0, bezierPoints = [0, 0, 1, 1], start = defaultColor, end = defaultColor, easingType = EasingType.Linear, easingLeft = 0, easingRight = 1, startTime = [0, 0, 1], endTime = [0, 0, 1] } = event ?? {};
+export function interpolateColorEventValue(event: ColorEvent, seconds: number): RGBcolor {
+    const endSeconds = event.cachedEndSeconds;
+    const { bezier, bezierPoints, start, end, easingType, easingLeft, easingRight, startTime, endTime } = event;
     const _interpolate = (part: 0 | 1 | 2) => {
-        if (!event) return 127;
         const e = {
             bezier,
             bezierPoints: [...bezierPoints] as BezierPoints,
@@ -255,14 +253,13 @@ export function interpolateColorEventValue(event: ColorEvent | null, seconds: nu
         ];
     }
 }
-export function interpolateTextEventValue(event: TextEvent | null, seconds: number) {
-    const endSeconds = event?.cachedEndSeconds ?? 0;
-    const { bezier = 0, bezierPoints = [0, 0, 1, 1], start = undefined, end = undefined, easingType = EasingType.Linear, easingLeft = 0, easingRight = 1, startTime = [0, 0, 1], endTime = [0, 0, 1] } = event ?? {};
+export function interpolateTextEventValue(event: TextEvent, seconds: number) {
+    const endSeconds = event.cachedEndSeconds;
+    const { bezier, bezierPoints, start, end, easingType, easingLeft, easingRight, startTime, endTime } = event;
     if (endSeconds <= seconds) {
         return end;
     }
     else {
-        if (start == undefined || end == undefined || event == null) return undefined;
         if (start.startsWith(end) || end.startsWith(start)) {
             const lengthStart = start.length;
             const lengthEnd = end.length;
@@ -287,6 +284,9 @@ export function interpolateTextEventValue(event: TextEvent | null, seconds: numb
         return start;
     }
 }
+/**
+ * 找到开始时间不大于seconds的最大的事件。若不存在，返回null。
+ */
 export function findLastEvent<T extends BaseEvent>(events: T[], seconds: number): T | null {
 
     // // Filter valid events and sort by cachedStartSeconds

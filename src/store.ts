@@ -136,6 +136,12 @@ class Store {
     getSeconds() {
         return this.useAudio().currentTime - this.useChart().META.offset / 1000;
     }
+    setSeconds(seconds: number) {
+        if (isNaN(seconds)) {
+            return;
+        }
+        this.useAudio().currentTime = seconds + this.useChart().META.offset / 1000;
+    }
     getChartId() {
         if (!this.route) {
             throw new Error("route is not defined");
@@ -203,7 +209,7 @@ class Store {
     addEvent(eventObject: IEvent<unknown>, eventType: string, eventLayerId: string, judgeLineNumber: number, id?: string) {
         const judgeLine = this.getJudgeLineById(judgeLineNumber);
         const eventLayer = eventLayerId == "X" ? judgeLine.extended : judgeLine.eventLayers[+eventLayerId];
-        if(!eventLayer){
+        if (!eventLayer) {
             throw new Error(`不存在编号为${eventLayerId}的事件层`);
         }
         return eventLayer.addEvent(eventObject, eventType, id);

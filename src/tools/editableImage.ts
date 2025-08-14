@@ -129,7 +129,19 @@ export default class EditableImage {
         this.canvas = canvas;
         return this;
     }
-    addColor(color: RGBcolor, force: number) {
+    addColor(color: RGBcolor) { 
+        // 按照原颜色乘以新颜色再除以255，得到叠加后的颜色
+        const ctx = canvasUtils.getContext(this.canvas);
+        const imageData = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            imageData.data[i] = (imageData.data[i] * color[0] / 0xff);
+            imageData.data[i + 1] = (imageData.data[i + 1] * color[1] / 0xff);
+            imageData.data[i + 2] = (imageData.data[i + 2] * color[2] / 0xff);
+        }
+        ctx.putImageData(imageData, 0, 0);
+        return this;
+    }
+    addColorWithForce(color: RGBcolor, force: number) {
         const ctx = canvasUtils.getContext(this.canvas);
         const imageData = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
         for (let i = 0; i < imageData.data.length; i += 4) {

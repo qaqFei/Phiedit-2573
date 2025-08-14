@@ -28,17 +28,11 @@
                 等级
             </template>
         </MyInput>
-        <MyInputNumber v-model="chart.META.offset">
-            <template #prepend>
-                偏移
-            </template>
-        </MyInputNumber>
     </div>
 </template>
 <script setup lang="ts">
 import store from '@/store';
 import MyInput from '../myElements/MyInput.vue';
-import MyInputNumber from '../myElements/MyInputNumber.vue';
 const props = defineProps<{
     titleTeleport: string
 }>();

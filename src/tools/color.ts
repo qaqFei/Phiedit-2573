@@ -32,3 +32,15 @@ export function parseRGBcolor(color: string): RGBcolor | null {
     }
     return [r, g, b];
 }
+
+export function RGBAtoRGB(color: RGBAcolor): RGBcolor {
+    return [color[0], color[1], color[2]];
+}
+
+export function colorToHex(color: RGBcolor): string {
+    return `#${(color[0] | 0).toString(16).padStart(2, "0")}${(color[1] | 0).toString(16).padStart(2, "0")}${(color[2] | 0).toString(16).padStart(2, "0")}`
+}
+
+export function invert(color: RGBcolor): RGBcolor {
+    return [255 - color[0], 255 - color[1], 255 - color[2]];
+}

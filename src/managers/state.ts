@@ -1,6 +1,6 @@
 import { NoteType } from "@/models/note";
 import { RightPanelState } from "@/types";
-import { Beats, secondsToBeats } from "@/models/beats";
+import { Beats, beatsToSeconds, secondsToBeats } from "@/models/beats";
 import { round, floor } from "lodash";
 import Constants from "../constants";
 import store from "@/store";
@@ -10,6 +10,7 @@ import Manager from "./abstract";
 import { EasingType } from "@/models/easing";
 export type NoteNumberAttrs = "size" | "alpha" | "speed" | "positionX" | "yOffset" | "visibleTime";
 export type EventNumberAttrs = "start" | "end";
+/** stateManager功能复杂，含有很多屎山代码！ */
 export default class StateManager extends Manager {
     readonly _state = {
         /** 右侧菜单栏的状态 */
@@ -174,6 +175,10 @@ return {
     relative(absoluteY: number) {
         return Constants.notesViewBox.bottom - absoluteY + this.offsetY;
     }
+    secondsIsVisible(seconds: number) {
+        const y = this.getRelativePositionYOfSeconds(seconds);
+        return Constants.notesViewBox.top <= y && y <= Constants.notesViewBox.bottom;
+    }
     getCurrentBeats(): Beats {
         const chart = store.useChart();
         const seconds = store.getSeconds();
@@ -183,5 +188,13 @@ return {
         const fenmu = this._state.horizonalLineCount;
         const fenzi = Math.floor(decimal * fenmu);
         return [int, fenzi, fenmu];
+    }
+    gotoBeats(beats: Beats) {
+        const chart = store.useChart();
+        const seconds = beatsToSeconds(chart.BPMList, beats);
+        this.gotoSeconds(seconds);
+    }
+    gotoSeconds(seconds: number) {
+        store.setSeconds(seconds);
     }
 }

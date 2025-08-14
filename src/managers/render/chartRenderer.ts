@@ -4,12 +4,13 @@ import { Note, NoteAbove, NoteType } from "@/models/note";
 import store from "@/store";
 import { sortAndForEach } from "@/tools/algorithm";
 import canvasUtils from "@/tools/canvasUtils";
-import { RGBcolor } from "@/tools/color";
+import { isEqualRGBcolors, RGBAtoRGB } from "@/tools/color";
 import MathUtils from "@/tools/mathUtils";
 import { ceil } from "lodash";
 import Manager from "../abstract";
 import globalEventEmitter from "@/eventEmitter";
 import { ArrayRepeat } from "@/tools/typeCheck";
+import EditableImage from "@/tools/editableImage";
 
 export default class ChartRenderer extends Manager {
     constructor() {
@@ -71,6 +72,7 @@ export default class ChartRenderer extends Manager {
         const seconds = store.getSeconds();
         const chart = store.useChart();
         const chartPackage = store.useChartPackage();
+        const resourcePackage = store.useResourcePackage();
         const ctx = canvasUtils.getContext(canvas);
 
         const drawLine = canvasUtils.drawLine.bind(ctx);
@@ -88,42 +90,79 @@ export default class ChartRenderer extends Manager {
                 getText: true
             });
             const radians = MathUtils.convertDegreesToRadians(angle);
+            const defaultScaleX = 1;
+            const defaultScaleY = 1;
+            const defaultColor = RGBAtoRGB(resourcePackage.config.colorPerfect);
+            // const defaultPaint = 0;
+            // const defaultText = "";
+
             ctx.save();
             ctx.translate(this.convertXToCanvas(x), this.convertYToCanvas(y));
             ctx.rotate(radians);
-            // 显示判定线号
-            writeText(i.toString(), 0, 30, 30, color);
-            ctx.scale(scaleX, scaleY);
+
+            // 在靠下30像素的位置显示判定线号，字号为30px，颜色与判定线颜色相同
+            writeText(judgeLine.father < 0 ? i.toString() : `${i}(${judgeLine.father})`, 0, 30, 30, color ?? defaultColor);
+            ctx.scale(scaleX ?? defaultScaleX, scaleY ?? defaultScaleY);
+
+            if (alpha <= 0) {
+                ctx.restore();
+                return;
+            }
+            // 如果透明度小于0，则按照透明度等于0处理
             if (alpha < 0)
                 ctx.globalAlpha = 0;
+
+            // 如果透明度大于255，则按照透明度等于255处理
+            else if (alpha > 255)
+                ctx.globalAlpha = 1;
+
+            // 否则按照正常的透明度处理
             else
                 ctx.globalAlpha = alpha / 255;
+
             if (judgeLine.Texture in textures) {
                 const image = textures[judgeLine.Texture];
-                ctx.drawImage(
-                    image,
-                    -image.width / 2,
-                    -image.height / 2,
-                    image.width,
-                    image.height);
+                if (color == undefined || isEqualRGBcolors(color, [255, 255, 255])) {
+                    ctx.drawImage(
+                        image,
+                        -image.width / 2,
+                        -image.height / 2,
+                        image.width,
+                        image.height);
+                }
+                else {
+                    const editableImage = new EditableImage(image);
+                    editableImage.addColor(color);
+                    const newImage = editableImage.canvas;
+                    ctx.drawImage(
+                        newImage,
+                        -newImage.width / 2,
+                        -newImage.height / 2,
+                        newImage.width,
+                        newImage.height);
+                }
             }
+
+            // 如果没有文字事件，就显示正常的判定线
             else if (text == undefined) {
                 drawLine(
                     -settingsManager._settings.lineLength,
                     0,
                     settingsManager._settings.lineLength,
                     0,
-                    color,
+                    color ?? defaultColor,
                     settingsManager._settings.lineWidth,
                     alpha / 255);
             }
+
+            // 如果有文字事件，就显示文字
             else {
                 writeText(
                     text,
                     0,
                     0,
                     settingsManager._settings.textSize,
-                    color,
+                    color ?? defaultColor,
                     true,
                     alpha / 255);
             }
@@ -188,7 +227,7 @@ export default class ChartRenderer extends Manager {
                     functions[Priority.Hold].push(() => {
                         ctx.globalAlpha = note.alpha / 255;
                         const missed = seconds > startSeconds + missSeconds && note.getJudgement() == 'none';
-                        if (missed) {
+                        if (missed && !note.isFake) {
                             ctx.globalAlpha *= 0.5;
                         }
                         // 以判定线为参考系
@@ -539,11 +578,36 @@ export default class ChartRenderer extends Manager {
         visited.push(lineNumber);
         let x = 0, y = 0, angle = 0, alpha = 0, speed = 0;
         for (const layer of judgeLine.eventLayers) {
-            if (getX) x += interpolateNumberEventValue(findLastEvent(layer.moveXEvents, seconds), seconds);
-            if (getY) y += interpolateNumberEventValue(findLastEvent(layer.moveYEvents, seconds), seconds);
-            if (getAngle) angle += interpolateNumberEventValue(findLastEvent(layer.rotateEvents, seconds), seconds);
-            if (getAlpha) alpha += interpolateNumberEventValue(findLastEvent(layer.alphaEvents, seconds), seconds);
-            if (getSpeed) speed += interpolateNumberEventValue(findLastEvent(layer.speedEvents, seconds), seconds);
+            if (getX) {
+                const event = findLastEvent(layer.moveXEvents, seconds);
+                if (event)
+                    x += interpolateNumberEventValue(event, seconds);
+
+            }
+            if (getY) {
+                const event = findLastEvent(layer.moveYEvents, seconds);
+                if (event)
+                    y += interpolateNumberEventValue(event, seconds);
+
+            }
+            if (getAngle) {
+                const event = findLastEvent(layer.rotateEvents, seconds);
+                if (event)
+                    angle += interpolateNumberEventValue(event, seconds);
+
+            }
+            if (getAlpha) {
+                const event = findLastEvent(layer.alphaEvents, seconds);
+                if (event)
+                    alpha += interpolateNumberEventValue(event, seconds);
+
+            }
+            if (getSpeed) {
+                const event = findLastEvent(layer.speedEvents, seconds);
+                if (event)
+                    speed += interpolateNumberEventValue(event, seconds);
+
+            }
         }
         if (judgeLine.father >= 0 && judgeLine.father < chart.judgeLineList.length) {
             const { x: fatherX, y: fatherY, angle: fatherAngle } = this.getJudgeLineInfo(judgeLine.father, seconds, {
@@ -555,11 +619,71 @@ export default class ChartRenderer extends Manager {
             x = newX;
             y = newY;
         }
-        const scaleX = getScaleX ? interpolateNumberEventValue(findLastEvent(judgeLine.extended.scaleXEvents, seconds), seconds) || 1 : 1;
-        const scaleY = getScaleY ? interpolateNumberEventValue(findLastEvent(judgeLine.extended.scaleYEvents, seconds), seconds) || 1 : 1;
-        const color: RGBcolor = getColor ? interpolateColorEventValue(findLastEvent(judgeLine.extended.colorEvents, seconds), seconds) : [128, 255, 128];
-        const paint = getPaint ? interpolateNumberEventValue(findLastEvent(judgeLine.extended.paintEvents, seconds), seconds) : 0;
-        const text = getText ? interpolateTextEventValue(findLastEvent(judgeLine.extended.textEvents, seconds), seconds) : '';
+        const scaleX = (() => {
+            if (getScaleX) {
+                const event = findLastEvent(judgeLine.extended.scaleXEvents, seconds);
+
+                if (event)
+                    return interpolateNumberEventValue(event, seconds);
+
+                else
+                    return undefined;
+
+            }
+            else {
+                return undefined;
+            }
+        })();
+        const scaleY = (() => {
+            if (getScaleY) {
+                const event = findLastEvent(judgeLine.extended.scaleYEvents, seconds);
+                if (event)
+                    return interpolateNumberEventValue(event, seconds);
+
+                else
+                    return undefined;
+            }
+            else {
+                return undefined;
+            }
+        })();
+        const color = (() => {
+            if (getColor) {
+                const event = findLastEvent(judgeLine.extended.colorEvents, seconds);
+                if (event)
+                    return interpolateColorEventValue(event, seconds);
+                else
+                    return undefined;
+            }
+            else {
+                return undefined;
+            }
+        })();
+        const paint = (() => {
+            if (getPaint) {
+                const event = findLastEvent(judgeLine.extended.paintEvents, seconds);
+                if (event)
+                    return interpolateNumberEventValue(event, seconds);
+                else
+                    return undefined;
+            }
+            else {
+                return undefined;
+            }
+        })();
+        const text = (() => {
+            if (getText) {
+                const event = findLastEvent(judgeLine.extended.textEvents, seconds);
+                if (event)
+                    return interpolateTextEventValue(event, seconds);
+                else
+                    return undefined;
+            }
+            // 随便返回啥都行
+            else {
+                return undefined;
+            }
+        })();
         return { x, y, angle, alpha, speed, scaleX, scaleY, color, paint, text };
     }
     /** 把谱面坐标系的X坐标转换成canvas坐标系的X坐标 */

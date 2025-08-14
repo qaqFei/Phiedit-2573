@@ -1,5 +1,5 @@
 import { reactive } from "vue";
-import { addBeats, Beats, isGreaterThanBeats, isLessThanBeats, subBeats } from "@/models/beats";
+import { addBeats, Beats, beatsToSeconds, isGreaterThanBeats, isLessThanBeats, subBeats } from "@/models/beats";
 import store from "@/store";
 import { Note } from "@/models/note";
 import globalEventEmitter from "@/eventEmitter";
@@ -126,8 +126,10 @@ export default class CloneManager extends Manager {
     }
     repeat() {
         // 把选中的元素复制一遍并粘贴
+        const stateManager = store.useManager("stateManager");
         const selectionManager = store.useManager("selectionManager");
         const historyManager = store.useManager("historyManager");
+        const chart = store.useChart();
         if (selectionManager.selectedElements.length == 0) {
             throw new Error("请选择元素");
         }
@@ -182,5 +184,9 @@ export default class CloneManager extends Manager {
         historyManager.ungroup();
         selectionManager.unselectAll();
         selectionManager.select(...elements);
+        const seconds = beatsToSeconds(chart.BPMList, maxTime);
+        if (!stateManager.secondsIsVisible(seconds)) {
+            stateManager.gotoSeconds(seconds);
+        }
     }
 }

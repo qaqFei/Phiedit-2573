@@ -8,11 +8,11 @@ interface EventLayerOptions {
     eventLayerId: string
 }
 export interface IBaseEventLayer {
-    moveXEvents: IEvent<number>[]
-    moveYEvents: IEvent<number>[]
-    rotateEvents: IEvent<number>[]
-    alphaEvents: IEvent<number>[]
-    speedEvents: IEvent<number>[]
+    moveXEvents?: IEvent<number>[]
+    moveYEvents?: IEvent<number>[]
+    rotateEvents?: IEvent<number>[]
+    alphaEvents?: IEvent<number>[]
+    speedEvents?: IEvent<number>[]
 }
 abstract class AbstractEventLayer {
     abstract getEventsByType(type: string): IEvent<unknown>[];
@@ -31,7 +31,9 @@ export const extendedEventTypes = [
     "color",
     "paint",
     "text",
-    // "incline"
+    // "incline",
+    // "shader",
+    // "gif",
 ] as const;
 export class BaseEventLayer extends AbstractEventLayer implements IBaseEventLayer {
     moveXEvents: NumberEvent[] = []
@@ -45,6 +47,15 @@ export class BaseEventLayer extends AbstractEventLayer implements IBaseEventLaye
         rotate: 0,
         alpha: 0,
         speed: 0
+    }
+    toObject() {
+        const obj: IBaseEventLayer = {};
+        if (this.moveXEvents.length > 0) obj.moveXEvents = this.moveXEvents.map(event => event.toObject());
+        if (this.moveYEvents.length > 0) obj.moveYEvents = this.moveYEvents.map(event => event.toObject());
+        if (this.rotateEvents.length > 0) obj.rotateEvents = this.rotateEvents.map(event => event.toObject());
+        if (this.alphaEvents.length > 0) obj.alphaEvents = this.alphaEvents.map(event => event.toObject());
+        if (this.speedEvents.length > 0) obj.speedEvents = this.speedEvents.map(event => event.toObject());
+        return obj;
     }
     getEventsByType(type: string) {
         switch (type) {
@@ -125,13 +136,12 @@ export class BaseEventLayer extends AbstractEventLayer implements IBaseEventLaye
     }
 }
 export interface IExtendedEventLayer {
-    scaleXEvents: IEvent<number>[]
-    scaleYEvents: IEvent<number>[]
-    colorEvents: IEvent<RGBcolor>[]
-    paintEvents: IEvent<number>[]
-    textEvents: IEvent<string>[]
-    inclineEvents: IEvent<number>[]// unsupported 
-
+    scaleXEvents?: IEvent<number>[]
+    scaleYEvents?: IEvent<number>[]
+    colorEvents?: IEvent<RGBcolor>[]
+    paintEvents?: IEvent<number>[]
+    textEvents?: IEvent<string>[]
+    inclineEvents?: IEvent<number>[]// unsupported 
 }
 export class ExtendedEventLayer extends AbstractEventLayer implements IExtendedEventLayer {
     scaleXEvents: NumberEvent[] = []
@@ -147,6 +157,16 @@ export class ExtendedEventLayer extends AbstractEventLayer implements IExtendedE
         paint: 0,
         text: 0,
         incline: 0 // unsupported
+    }
+    toObject() {
+        const obj: IExtendedEventLayer = {};
+        if (this.scaleXEvents.length > 0) obj.scaleXEvents = this.scaleXEvents.map(event => event.toObject());
+        if (this.scaleYEvents.length > 0) obj.scaleYEvents = this.scaleYEvents.map(event => event.toObject());
+        if (this.colorEvents.length > 0) obj.colorEvents = this.colorEvents.map(event => event.toObject());
+        if (this.paintEvents.length > 0) obj.paintEvents = this.paintEvents.map(event => event.toObject());
+        if (this.textEvents.length > 0) obj.textEvents = this.textEvents.map(event => event.toObject());
+        if (this.inclineEvents.length > 0) obj.inclineEvents = this.inclineEvents.map(event => event.toObject());
+        return obj;
     }
     getEventsByType(type: string) {
         switch (type) {

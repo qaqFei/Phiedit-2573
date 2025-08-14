@@ -3,7 +3,7 @@ import { NumberEvent, interpolateNumberEventValue, findLastEvent, ColorEvent, Te
 import { Note, NoteType } from "@/models/note";
 import { checkAndSort } from "@/tools/algorithm";
 import canvasUtils from "@/tools/canvasUtils";
-import { colorToString } from "@/tools/color";
+import { colorToHex, colorToString, RGBcolor } from "@/tools/color";
 import { floor, ceil } from "lodash";
 import Constants from "../../constants";
 import { MouseMoveMode } from "@/types";
@@ -129,11 +129,20 @@ export default class EditorRenderer extends Manager {
                     Constants.notesViewBox.bottom,
                     Constants.verticalLineColor);
         }
+        const types = (() => {
+            const eventLayer = stateManager.currentEventLayer;
+            if (eventLayer instanceof BaseEventLayer) {
+                return baseEventTypes;
+            }
+            else {
+                return extendedEventTypes;
+            }
+        })()
         // 显示事件中间的分隔线
-        for (let i = 1; i < 5; i++)
-            drawLine(Constants.eventsViewBox.width * i / 5 + Constants.eventsViewBox.left,
+        for (let i = 1; i < types.length; i++)
+            drawLine(Constants.eventsViewBox.width * i / types.length + Constants.eventsViewBox.left,
                 Constants.eventsViewBox.top,
-                Constants.eventsViewBox.width * i / 5 + Constants.eventsViewBox.left,
+                Constants.eventsViewBox.width * i / types.length + Constants.eventsViewBox.left,
                 Constants.notesViewBox.bottom,
                 Constants.verticalMainLineColor);
         // 显示边框
@@ -471,8 +480,26 @@ export default class EditorRenderer extends Manager {
                     }
                 }
             }
-            if (events.every(event => event instanceof NumberEvent)) {
-                const currentEventValue = interpolateNumberEventValue(findLastEvent(events, seconds), seconds);
+            if (type == "color") {
+                const event = findLastEvent(events as ColorEvent[], seconds);
+                const color: RGBcolor = event ? interpolateColorEventValue(event, seconds) : [255, 255, 255];
+                writeText(colorToHex(color), eventX, Constants.eventsViewBox.bottom - 20, 30, color, true);
+            }
+            else if (type == "text") {
+                // TODO: 显示文本
+            }
+            else {
+                const event = findLastEvent(events as NumberEvent[], seconds);
+                let currentEventValue = event ? interpolateNumberEventValue(event, seconds) : undefined;
+                switch (type) {
+                    case "scaleX":
+                    case "scaleY":
+                        currentEventValue ??= 1;
+                        break;
+                    default:
+                        currentEventValue ??= 0;
+                }
+                ctx.lineWidth = 5;
                 writeText(currentEventValue.toFixed(2), eventX, Constants.eventsViewBox.bottom - 20, 30, "white", false);
                 writeText(currentEventValue.toFixed(2), eventX, Constants.eventsViewBox.bottom - 20, 30, "blue", true);
             }

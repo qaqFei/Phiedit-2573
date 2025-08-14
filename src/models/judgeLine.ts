@@ -160,21 +160,8 @@ export class JudgeLine implements IJudgeLine {
             skewControl: this.skewControl,
             yControl: this.yControl,
             bpmfactor: this.bpmfactor,
-            eventLayers: this.eventLayers.map(eventLayer => ({
-                moveXEvents: eventLayer.moveXEvents.map(event => event.toObject()),
-                moveYEvents: eventLayer.moveYEvents.map(event => event.toObject()),
-                rotateEvents: eventLayer.rotateEvents.map(event => event.toObject()),
-                alphaEvents: eventLayer.alphaEvents.map(event => event.toObject()),
-                speedEvents: eventLayer.speedEvents.map(event => event.toObject())
-            })),
-            extended: {
-                scaleXEvents: this.extended.scaleXEvents.map(event => event.toObject()),
-                scaleYEvents: this.extended.scaleYEvents.map(event => event.toObject()),
-                colorEvents: this.extended.colorEvents.map(event => event.toObject()),
-                paintEvents: this.extended.paintEvents.map(event => event.toObject()),
-                textEvents: this.extended.textEvents.map(event => event.toObject()),
-                inclineEvents: this.extended.inclineEvents.map(event => event.toObject()) // unsupported
-            },
+            eventLayers: this.eventLayers.map(eventLayer => eventLayer.toObject()),
+            extended: this.extended.toObject(),
             notes: this.notes.map(note => note.toObject()),
             numOfNotes: this.notes.length,
         }

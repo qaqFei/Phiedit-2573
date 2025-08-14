@@ -115,6 +115,7 @@
 - 不要使用魔法数字，[models](src/models) 文件夹中有很多文件都已经定义了 `enum` 枚举常量（如 `NoteType`、`NoteAbove` 等），请使用枚举常量。
 - 遇到用户可能比较难懂的术语时，使用 [MyQuestionMark.vue](src/myElements/MyQuestionMark.vue) 的问号组件来进行解释。
 - 请使用 `<em>` 元素表示需要强调的内容。[index.html](public/index.html) 中已经为 `<em>` 元素设置了样式。
+- [myElements](src/myElements) 和 [panels](src/panels) 目录下的文件中 `<style>` 必须使用 `scoped` 属性。
 
 ## Pull Request 审核标准
 - Pull Request 的目标分支必须是 dev（开发分支），而非 master（主分支）。

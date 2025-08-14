@@ -259,7 +259,6 @@ export default class MouseManager extends Manager {
         else if (Constants.eventsViewBox.touch(x, y)) {
             const chart = store.useChart();
             const time = stateManager.attatchY(y);
-            const track = floor((x - Constants.eventsViewBox.left) / (Constants.eventsViewBox.right - Constants.eventsViewBox.left) * 5);
             const types = (() => {
                 const eventLayer = stateManager.currentEventLayer;
                 if (eventLayer instanceof BaseEventLayer) {
@@ -269,6 +268,7 @@ export default class MouseManager extends Manager {
                     return extendedEventTypes;
                 }
             })()
+            const track = floor((x - Constants.eventsViewBox.left) / (Constants.eventsViewBox.right - Constants.eventsViewBox.left) * types.length);
             const type = types[track];
             const timeSeconds = beatsToSeconds(chart.BPMList, time);
             const lastEvent = findLastEvent<NumberEvent | ColorEvent | TextEvent>(stateManager.currentEventLayer.getEventsByType(type), timeSeconds);

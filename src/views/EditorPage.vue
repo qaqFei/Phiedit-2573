@@ -171,10 +171,11 @@
                 </template>
             </MyInputNumber>
             <p class="text">
-                COMBO: {{ combo }}, 
+                COMBO: {{ combo }},
                 SCORE: {{ round(score).toString().padStart(7, '0') }}<br>
             </p>
             <MyGridContainer
+                class="event-layer-select"
                 :columns="5"
                 :gap="5"
             >
@@ -187,20 +188,45 @@
                 >
                     {{ i - 1 }}
                 </MyButton>
-                <MyButton
-                    type="warning"
-                    :plain="stateManager.state.currentEventLayerId != 'X'"
-                    @click="stateManager.state.currentEventLayerId = 'X', update()"
-                >
-                    特殊
-                </MyButton>
-                <!-- <MyButton
-                            type="success"
-                            @click="stateManager.currentJudgeLine.addEventLayer(), update()"
+                <ElTooltip>
+                    <template #default>
+                        <MyButton
+                            type="warning"
+                            :plain="stateManager.state.currentEventLayerId != 'X'"
+                            @click="stateManager.state.currentEventLayerId = 'X', update()"
                         >
-                            +
-                        </MyButton> -->
+                            特殊
+                        </MyButton>
+                    </template>
+                    <template #content>
+                        特殊层级的事件与普通层级不同：<br>
+                        普通层级有4层，特殊层级只有一层<br>
+                        普通层级从左到右分别为：moveX，moveY，rotate，alpha，speed<br>
+                        特殊事件层级从左到右分别为：scaleX，scaleY，color，paint，text<br>
+                        scaleX和scaleY控制判定线的长度和宽度<br>
+                        color控制判定线的颜色<br>
+                        paint暂不支持<br>
+                        text控制判定线显示的文字<br>
+                    </template>
+                </ElTooltip>
+                <!-- <MyButton
+                    type="success"
+                    @click="stateManager.currentJudgeLine.addEventLayer(), update()"
+                >
+                    +
+                </MyButton> -->
             </MyGridContainer>
+            <MyInputNumber
+                v-model="chart.META.offset"
+                class="offset-input"
+            >
+                <template #prepend>
+                    偏移
+                    <MyQuestionMark>
+                        谱面的偏移量，单位为毫秒。建议控制在-500~500之间。
+                    </MyQuestionMark>
+                </template>
+            </MyInputNumber>
         </ElHeader>
         <ElAside id="left">
             <div
@@ -226,7 +252,7 @@
                             </MyButton>
                         </template>
                         <template #content>
-                            <em>导出的谱面有bug，无法直接导入进Phira，请按以下步骤操作</em><br>
+                            <em>导出的谱面有bug，无法直接导入进Re:PhiEdit，请按以下步骤操作</em><br>
                             导出后请把文件的后缀名pez改为zip并解压缩到一个文件夹中，<br>
                             打开你的<em>Re:PhiEdit软件</em>，点击“添加谱面”，选择文件夹中的音乐和曲绘文件，<br>
                             并进入谱面，点击左上角的齿轮按钮，点击“导入谱面”，选择文件夹中的json文件，<br>
@@ -364,7 +390,7 @@
                         快速切换判定线
                     </h3>
                     <MyGridContainer
-                        :columns="5"
+                        :columns="stateManager.judgeLinesCount < 100 ? 5 : 4"
                         :gap="5"
                     >
                         <MyButton
@@ -378,7 +404,7 @@
                         </MyButton>
                         <MyButton
                             type="success"
-                            @click="chartPackageRef?.chart.addNewJudgeLine(), update()"
+                            @click="chart.addNewJudgeLine(), update()"
                         >
                             +
                         </MyButton>
@@ -515,7 +541,7 @@ import ClipboardPanel from "@/panels/ClipboardPanel.vue";
 
 import globalEventEmitter from "@/eventEmitter";
 import { RightPanelState } from "@/types";
-import store, { audioRef, canvasRef, chartPackageRef, resourcePackageRef } from "@/store";
+import store, { audioRef, canvasRef, resourcePackageRef } from "@/store";
 import BoxesManager from "@/managers/boxes";
 import { confirm } from "@/tools/catchError";
 import CalculatorPanel from "@/panels/CalculatorPanel.vue";
@@ -530,6 +556,7 @@ import MyImage from "@/myElements/MyImage.vue";
 import AutoplayManager from "@/managers/autoplay";
 import ColorEventEditPanel from "@/panels/ColorEventEditPanel.vue";
 import TextEventEditPanel from "@/panels/TextEventEditPanel.vue";
+import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
 
 const loadStart = inject("loadStart", () => {
     throw new Error("loadStart is not defined");
@@ -541,72 +568,70 @@ store.route = useRoute();
 const router = useRouter();
 
 loadStart();
-{
-    // 读取chartPackage
-    const chartId = store.getChartId();
-    const readResult = await window.electronAPI.readChart(chartId);
-    const musicBlob = MediaUtils.arrayBufferToBlob(readResult.musicData);
-    const musicSrc = URL.createObjectURL(musicBlob);
-    const backgroundBlob = MediaUtils.arrayBufferToBlob(readResult.backgroundData);
-    const backgroundSrc = URL.createObjectURL(backgroundBlob);
-    const textureBlobs = readResult.textureDatas.map((textureData) =>
-        MediaUtils.arrayBufferToBlob(textureData)
-    );
-    const textureSrcs = textureBlobs.map((textureBlob) => URL.createObjectURL(textureBlob));
-    store.chartPackageRef.value = new ChartPackage({
-        musicSrc,
-        background: (() => {
-            const image = new Image();
-            image.src = backgroundSrc;
-            return image;
-        })(),
-        textures: (() => {
-            const textures: Record<string, HTMLImageElement> = {};
-            for (let i = 0; i < textureSrcs.length; i++) {
-                textures[readResult.texturePaths[i]] = (() => {
-                    const image = new Image();
-                    image.src = textureSrcs[i];
-                    return image;
-                })();
-            }
-            return textures;
-        })(),
-        chart: JSON.parse(readResult.chartContent),
-    });
-
-    // 加载resourcePackage
-    store.resourcePackageRef.value = await getResourcePackage();
-
-    // 创建并设置managers
-    store.setManager("chartRenderer", new ChartRenderer());
-    store.setManager("editorRenderer", new EditorRenderer());
-    store.setManager("clipboardManager", new ClipboardManager());
-    store.setManager("cloneManager", new CloneManager());
-    store.setManager("historyManager", new HistoryManager());
-    store.setManager("mouseManager", new MouseManager());
-    store.setManager("moveManager", new MoveManager());
-    store.setManager("saveManager", new SaveManager());
-    store.setManager("selectionManager", new SelectionManager());
-    store.setManager("settingsManager", new SettingsManager());
-    store.setManager("stateManager", new StateManager());
-    store.setManager("paragraphRepeater", new ParagraphRepeater());
-    store.setManager("exportManager", new ExportManager());
-    store.setManager("eventAbillitiesManager", new EventAbillitiesManager());
-    store.setManager("boxesManager", new BoxesManager());
-    store.setManager("noteFiller", new NoteFiller());
-    store.setManager("eventFiller", new EventFiller());
-    store.setManager("lineBinder", new LineBinder());
-    store.setManager("autoplayManager", new AutoplayManager());
-
-    onBeforeUnmount(() => {
-        // 释放资源
-        URL.revokeObjectURL(musicSrc);
-        URL.revokeObjectURL(backgroundSrc);
-        for (const textureSrc of textureSrcs) {
-            URL.revokeObjectURL(textureSrc);
+// 读取chartPackage
+const chartId = store.getChartId();
+const readResult = await window.electronAPI.readChart(chartId);
+const musicBlob = MediaUtils.arrayBufferToBlob(readResult.musicData);
+const musicSrc = URL.createObjectURL(musicBlob);
+const backgroundBlob = MediaUtils.arrayBufferToBlob(readResult.backgroundData);
+const backgroundSrc = URL.createObjectURL(backgroundBlob);
+const textureBlobs = readResult.textureDatas.map((textureData) =>
+    MediaUtils.arrayBufferToBlob(textureData)
+);
+const textureSrcs = textureBlobs.map((textureBlob) => URL.createObjectURL(textureBlob));
+store.chartPackageRef.value = new ChartPackage({
+    musicSrc,
+    background: (() => {
+        const image = new Image();
+        image.src = backgroundSrc;
+        return image;
+    })(),
+    textures: (() => {
+        const textures: Record<string, HTMLImageElement> = {};
+        for (let i = 0; i < textureSrcs.length; i++) {
+            textures[readResult.texturePaths[i]] = (() => {
+                const image = new Image();
+                image.src = textureSrcs[i];
+                return image;
+            })();
         }
-    });
-}
+        return textures;
+    })(),
+    chart: JSON.parse(readResult.chartContent),
+});
+const chart = store.chartPackageRef.value.chart;
+// 加载resourcePackage
+store.resourcePackageRef.value = await getResourcePackage();
+
+// 创建并设置managers
+store.setManager("chartRenderer", new ChartRenderer());
+store.setManager("editorRenderer", new EditorRenderer());
+store.setManager("clipboardManager", new ClipboardManager());
+store.setManager("cloneManager", new CloneManager());
+store.setManager("historyManager", new HistoryManager());
+store.setManager("mouseManager", new MouseManager());
+store.setManager("moveManager", new MoveManager());
+store.setManager("saveManager", new SaveManager());
+store.setManager("selectionManager", new SelectionManager());
+store.setManager("settingsManager", new SettingsManager());
+store.setManager("stateManager", new StateManager());
+store.setManager("paragraphRepeater", new ParagraphRepeater());
+store.setManager("exportManager", new ExportManager());
+store.setManager("eventAbillitiesManager", new EventAbillitiesManager());
+store.setManager("boxesManager", new BoxesManager());
+store.setManager("noteFiller", new NoteFiller());
+store.setManager("eventFiller", new EventFiller());
+store.setManager("lineBinder", new LineBinder());
+store.setManager("autoplayManager", new AutoplayManager());
+
+onBeforeUnmount(() => {
+    // 释放资源
+    URL.revokeObjectURL(musicSrc);
+    URL.revokeObjectURL(backgroundSrc);
+    for (const textureSrc of textureSrcs) {
+        URL.revokeObjectURL(textureSrc);
+    }
+});
 loadEnd();
 
 const stateManager = store.useManager("stateManager");
@@ -1017,7 +1042,7 @@ onMounted(() => {
     height: 100%;
     display: grid;
     grid-template-columns: 300px 1fr 300px;
-    grid-template-rows: 130px 1fr 30px;
+    grid-template-rows: 120px 1fr 30px;
     grid-template-areas:
         "header header header"
         "left main right"
@@ -1034,7 +1059,7 @@ onMounted(() => {
     grid-template-areas:
         "audio-player audio-player audio-player fps"
         "note-type-select speed-select horizontal-input vertical-input"
-        "note-type-select text none none";
+        "note-type-select text event-layer-select offset-input";
     gap: 10px;
 }
 
@@ -1054,29 +1079,7 @@ onMounted(() => {
 
 .note-type-select {
     grid-area: note-type-select;
-    /* display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: 2fr 1fr;
-    grid-template-areas:
-        "tap drag flick hold"
-        "x x x hold"; */
 }
-
-/* .note-type-tap {
-    grid-area: tap;
-}
-
-.note-type-drag {
-    grid-area: drag;
-}
-
-.note-type-flick {
-    grid-area: flick;
-}
-
-.note-type-hold {
-    grid-area: hold;
-} */
 
 .speed-select {
     grid-area: speed-select;
@@ -1088,6 +1091,14 @@ onMounted(() => {
 
 .vertical-input {
     grid-area: vertical-input;
+}
+
+.event-layer-select {
+    grid-area: event-layer-select;
+}
+
+.offset-input {
+    grid-area: offset-input;
 }
 
 /* .note-type-select .el-radio-button {

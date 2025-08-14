@@ -1,6 +1,6 @@
 <template>
     <div
-        class="grid-container"
+        :class="`grid-container ${props.class}`"
         v-bind="$attrs"
         :style="{
             gridTemplateColumns: `repeat(${props.columns}, 1fr)`,
@@ -13,10 +13,12 @@
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
     columns?: number,
-    gap?: number
+    gap?: number,
+    class?: string,
 }>(),{
     columns: 1,
-    gap: 10
+    gap: 10,
+    class: ''
 });
 </script>
 <style scoped>
