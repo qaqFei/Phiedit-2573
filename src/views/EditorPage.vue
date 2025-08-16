@@ -158,6 +158,13 @@
             >
                 <template #prepend>
                     横线数
+                    <MyQuestionMark>
+                        一拍内有多少条横线。在写一些奇怪的节奏时可能会用到。<br>
+                        假如四分音符为一拍，则每个格子代表（4×横线数）分音。<br>
+                        若横线数为4，则每个格子为16分音。<br>
+                        若横线数为6，则每个格子为24分音。<br>
+                        若横线数为8，则每个格子为32分音。<br>
+                    </MyQuestionMark>
                 </template>
             </MyInputNumber>
             <MyInputNumber
@@ -168,6 +175,10 @@
             >
                 <template #prepend>
                     竖线数
+                    <MyQuestionMark>
+                        左边的音符编辑区域内有多少条竖线。用于让排键更规整。<br>
+                        建议调为19或21。如果要取消竖线，请设为0。取消竖线后你的排键可能会很乱。<br>
+                    </MyQuestionMark>
                 </template>
             </MyInputNumber>
             <p class="text">
@@ -188,27 +199,31 @@
                 >
                     {{ i - 1 }}
                 </MyButton>
-                <ElTooltip>
-                    <template #default>
-                        <MyButton
-                            type="warning"
-                            :plain="stateManager.state.currentEventLayerId != 'X'"
-                            @click="stateManager.state.currentEventLayerId = 'X', update()"
-                        >
-                            特殊
-                        </MyButton>
-                    </template>
+                <!-- <ElTooltip>
+                    <template #default> -->
+                <MyButton
+                    type="warning"
+                    :plain="stateManager.state.currentEventLayerId != 'X'"
+                    @click="stateManager.state.currentEventLayerId = 'X', update()"
+                >
+                    特殊
+                </MyButton>
+                <!-- </template>
                     <template #content>
                         特殊层级的事件与普通层级不同：<br>
                         普通层级有4层，特殊层级只有一层<br>
                         普通层级从左到右分别为：moveX，moveY，rotate，alpha，speed<br>
                         特殊事件层级从左到右分别为：scaleX，scaleY，color，paint，text<br>
+                        moveX和moveY控制判定线的位置（屏幕范围为X:[-675,675], Y:[-450,450]）<br>
+                        rotate控制判定线的角度（0朝上，90朝右，180朝下，270朝左，还可以斜着）<br>
+                        alpha控制判定线的透明度（0隐藏，128半透明，255完全不透明）<br>
+                        speed控制判定线上面音符的流速（10是一个比较正常的流速）<br>
                         scaleX和scaleY控制判定线的长度和宽度<br>
-                        color控制判定线的颜色<br>
+                        color控制判定线的颜色（RGB）<br>
                         paint暂不支持<br>
                         text控制判定线显示的文字<br>
                     </template>
-                </ElTooltip>
+                </ElTooltip> -->
                 <!-- <MyButton
                     type="success"
                     @click="stateManager.currentJudgeLine.addEventLayer(), update()"
@@ -223,7 +238,9 @@
                 <template #prepend>
                     偏移
                     <MyQuestionMark>
-                        谱面的偏移量，单位为毫秒。建议控制在-500~500之间。
+                        谱面的偏移量，单位为毫秒。<br>
+                        正数表示谱面比音乐延后，负数表示谱面比音乐提前。<br>
+                        建议控制在-500~500之间。<br>
                     </MyQuestionMark>
                 </template>
             </MyInputNumber>
@@ -261,6 +278,20 @@
                             <em>注意，我说的是Re:PhiEdit，不是本软件！请在bilibili上搜索Re:PhiEdit以获取该软件！</em>
                         </template>
                     </ElTooltip>
+                    <p>
+                        左键：选择音符或事件<br>
+                        右键：添加音符或事件<br>
+                        滚轮：前后滚动时间<br>
+                        左键：拖动音符或事件的头部<br>
+                        右键：拖动音符或事件的尾部<br>
+                        Ctrl+滚轮：缩放界面<br>
+                        左方括号：切换到上一条判定线<br>
+                        右方括号：切换到下一条判定线<br>
+                        A：切换到上一条判定线<br>
+                        D：切换到下一条判定线<br>
+                        T、U、I：预览谱面<br>
+                        其他快捷键界面里有提示
+                    </p>
                 </div>
                 <div>
                     <MyButton
@@ -497,7 +528,7 @@ import {
 } from "element-plus";
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { clamp, mean, min, round } from "lodash";
+import { mean, min, round } from "lodash";
 
 import MediaUtils from "@/tools/mediaUtils";
 import KeyboardUtils from "@/tools/keyboardUtils";
@@ -636,7 +667,6 @@ loadEnd();
 
 const stateManager = store.useManager("stateManager");
 const selectionManager = store.useManager("selectionManager");
-const settingsManager = store.useManager("settingsManager");
 const autoplayManager = store.useManager("autoplayManager");
 
 const fps = ref(60);
@@ -711,18 +741,20 @@ function canvasMouseUp(e: MouseEvent) {
     const { x, y } = calculatePosition(e);
     globalEventEmitter.emit("MOUSE_UP", x, y, options);
 }
+function canvasMouseEnter() {
+    globalEventEmitter.emit("MOUSE_ENTER");
+}
+function canvasMouseLeave() {
+    globalEventEmitter.emit("MOUSE_LEAVE");
+}
 function windowOnWheel(e: WheelEvent) {
-    const audio = store.useAudio();
     if (e.ctrlKey) {
         e.preventDefault();
-        stateManager.state.pxPerSecond = clamp(
-            stateManager.state.pxPerSecond + e.deltaY * -0.05,
-            1,
-            1000
-        );
+        globalEventEmitter.emit("CTRL_WHEEL", e.deltaY);
     } else {
-        audio.currentTime +=
-            (e.deltaY * settingsManager.settings.wheelSpeed) / -stateManager.state.pxPerSecond;
+        // audio.currentTime +=
+        //     (e.deltaY * settingsManager.settings.wheelSpeed) / -stateManager.state.pxPerSecond;
+        globalEventEmitter.emit("WHEEL", e.deltaY);
     }
 }
 function canvasOnResize() {
@@ -869,7 +901,9 @@ async function windowOnKeyDown(e: KeyboardEvent) {
         case "Alt S":
             globalEventEmitter.emit("SWAP");
             return;
-
+        case "Alt D":
+            globalEventEmitter.emit("STICK");
+            return;
     }
 }
 function documentOnContextmenu(e: Event) {
@@ -940,6 +974,8 @@ onMounted(() => {
     canvas.addEventListener("mousedown", canvasMouseDown);
     canvas.addEventListener("mousemove", canvasMouseMove);
     canvas.addEventListener("mouseup", canvasMouseUp);
+    canvas.addEventListener("mouseenter", canvasMouseEnter);
+    canvas.addEventListener("mouseleave", canvasMouseLeave);
     const resizeObserver = new ResizeObserver(canvasOnResize);
     resizeObserver.observe(canvas);
     window.addEventListener("wheel", windowOnWheel, { passive: false });
@@ -958,9 +994,11 @@ onMounted(() => {
         if (isRendering) {
             if (windowIsFocused) {
                 try {
+                    globalEventEmitter.emit("RENDER_FRAME");
                     if (stateManager.state.isPreviewing) {
                         globalEventEmitter.emit("RENDER_CHART");
-                    } else {
+                    }
+                    else {
                         globalEventEmitter.emit("RENDER_EDITOR");
                     }
                 } catch (error) {
@@ -999,6 +1037,8 @@ onMounted(() => {
         canvas.removeEventListener("mousedown", canvasMouseDown);
         canvas.removeEventListener("mousemove", canvasMouseMove);
         canvas.removeEventListener("mouseup", canvasMouseUp);
+        canvas.removeEventListener("mouseenter", canvasMouseEnter);
+        canvas.removeEventListener("mouseleave", canvasMouseLeave);
         resizeObserver.unobserve(canvas);
         resizeObserver.disconnect();
         window.removeEventListener("wheel", windowOnWheel);

@@ -4,7 +4,7 @@ import { Note, NoteAbove, NoteType } from "@/models/note";
 import store from "@/store";
 import { sortAndForEach } from "@/tools/algorithm";
 import canvasUtils from "@/tools/canvasUtils";
-import { isEqualRGBcolors, RGBAtoRGB } from "@/tools/color";
+import { isEqualRGBcolors, RGBAtoRGB, RGBcolor } from "@/tools/color";
 import MathUtils from "@/tools/mathUtils";
 import { ceil } from "lodash";
 import Manager from "../abstract";
@@ -68,6 +68,7 @@ export default class ChartRenderer extends Manager {
     /** 显示判定线 */
     private drawJudgeLines() {
         const settingsManager = store.useManager("settingsManager");
+        const stateManager = store.useManager("stateManager");
         const canvas = store.useCanvas();
         const seconds = store.getSeconds();
         const chart = store.useChart();
@@ -93,15 +94,18 @@ export default class ChartRenderer extends Manager {
             const defaultScaleX = 1;
             const defaultScaleY = 1;
             const defaultColor = RGBAtoRGB(resourcePackage.config.colorPerfect);
+            const currentColor: RGBcolor = [0, 255, 0];
+            const isMarkedCurrent = stateManager._state.currentJudgeLineNumber == i && settingsManager._settings.markCurrentJudgeLine;
             // const defaultPaint = 0;
             // const defaultText = "";
 
             ctx.save();
             ctx.translate(this.convertXToCanvas(x), this.convertYToCanvas(y));
             ctx.rotate(radians);
-
-            // 在靠下30像素的位置显示判定线号，字号为30px，颜色与判定线颜色相同
-            writeText(judgeLine.father < 0 ? i.toString() : `${i}(${judgeLine.father})`, 0, 30, 30, color ?? defaultColor);
+            if (settingsManager._settings.showJudgeLineNumber) {
+                // 在靠下30像素的位置显示判定线号，字号为30px，颜色与判定线颜色相同
+                writeText(judgeLine.father < 0 ? i.toString() : `${i}(${judgeLine.father})`, 0, 30, 30, isMarkedCurrent ? currentColor : (color ?? defaultColor));
+            }
             ctx.scale(scaleX ?? defaultScaleX, scaleY ?? defaultScaleY);
 
             if (alpha <= 0) {
@@ -119,6 +123,7 @@ export default class ChartRenderer extends Manager {
             // 否则按照正常的透明度处理
             else
                 ctx.globalAlpha = alpha / 255;
+
 
             if (judgeLine.Texture in textures) {
                 const image = textures[judgeLine.Texture];
@@ -146,11 +151,11 @@ export default class ChartRenderer extends Manager {
             // 如果没有文字事件，就显示正常的判定线
             else if (text == undefined) {
                 drawLine(
-                    -settingsManager._settings.lineLength,
+                    -settingsManager._settings.lineLength / 2,
                     0,
-                    settingsManager._settings.lineLength,
+                    settingsManager._settings.lineLength / 2,
                     0,
-                    color ?? defaultColor,
+                    isMarkedCurrent ? currentColor : (color ?? defaultColor),
                     settingsManager._settings.lineWidth,
                     alpha / 255);
             }
@@ -162,7 +167,7 @@ export default class ChartRenderer extends Manager {
                     0,
                     0,
                     settingsManager._settings.textSize,
-                    color ?? defaultColor,
+                    isMarkedCurrent ? currentColor : (color ?? defaultColor),
                     true,
                     alpha / 255);
             }

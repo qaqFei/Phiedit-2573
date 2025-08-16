@@ -138,7 +138,6 @@ export class Chart implements IChart {
             BPMList: this.BPMList,
             judgeLineNumber
         });
-        judgeLine.initializeEvents();
         this.judgeLineList.push(judgeLine);
         return judgeLine;
     }

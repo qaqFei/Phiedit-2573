@@ -4,8 +4,14 @@
             快速绑线
         </Teleport>
         <em>提示：被绑线的判定线必须是该线的子线</em>
+        <p>
+            当前为{{ stateManager.state.currentJudgeLineNumber }}号线
+        </p>
         <p v-if="childLines.length === 0">
             暂无满足条件的判定线
+        </p>
+        <p v-else>
+            有以下判定线可以绑线：（请选择想绑线的判定线）
         </p>
         <MyGridContainer
             :columns="5"

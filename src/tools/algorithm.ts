@@ -95,7 +95,7 @@ export class ExpressionCalculator {
             }
 
             // Match operators
-            if (/^[\^()+\-*/]$/.test(char)) {
+            if (/^[\^()+\-*/%]$/.test(char)) {
                 tokens.push(char);
                 index++;
                 continue;
@@ -123,7 +123,7 @@ export class ExpressionCalculator {
 
         const parse2 = (): AstNode => {
             let left = parse3();
-            while (index < tokens.length && /^[*/]$/.test(tokens[index])) {
+            while (index < tokens.length && /^[*/%]$/.test(tokens[index])) {
                 const op = tokens[index++];
                 const right = parse3();
                 left = new BinaryExpression(op, left, right);

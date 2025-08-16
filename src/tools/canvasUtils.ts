@@ -54,5 +54,26 @@ export default {
                 this.strokeStyle = colorToString(color);
             this.strokeText(text, centerX, centerY);
         }
+    },
+    drawCircle(this: CanvasRenderingContext2D, x: number, y: number, radius: number, color: string | RGBcolor | RGBAcolor, fill: boolean = true, alpha: number = 1) {
+        this.globalAlpha = alpha;
+        if (fill) {
+            if (isString(color))
+                this.fillStyle = color;
+            else
+                this.fillStyle = colorToString(color);
+            this.beginPath();
+            this.arc(x, y, radius, 0, 2 * Math.PI);
+            this.fill();
+        }
+        else {
+            if (isString(color))
+                this.strokeStyle = color;
+            else
+                this.strokeStyle = colorToString(color);
+            this.beginPath();
+            this.arc(x, y, radius, 0, 2 * Math.PI);
+            this.stroke();
+        }
     }
 }

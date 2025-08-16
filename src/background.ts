@@ -32,6 +32,7 @@ async function createWindow() {
     const userDataDir = app.getPath('userData');
     const chartsDir = path.join(userDataDir, "charts");
     const chartListFile = path.join(chartsDir, "list.json");
+    const settingsFile = path.join(userDataDir, "settings.json");
 
     // 定义文件编码格式
     const encoding = 'utf-8';
@@ -542,7 +543,29 @@ async function createWindow() {
             throw error;
         }
     });
-
+    ipcMain.handle('read-settings', async () => {
+        try {
+            const settingsContent = await fs.promises.readFile(settingsFile, 'utf-8');
+            const settings = JSON.parse(settingsContent);
+            return settings;
+        }
+        catch (error) {
+            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+                return null;
+            }
+            console.error('Failed to read settings:', error);
+            throw error;
+        }
+    })
+    ipcMain.handle('write-settings', async (event, settings) => {
+        try {
+            await fs.promises.writeFile(settingsFile, JSON.stringify(settings));
+        }
+        catch (error) {
+            console.error('Failed to write settings:', error);
+            throw error;
+        }
+    })
 
 
     // Create the browser window.

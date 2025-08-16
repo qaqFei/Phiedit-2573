@@ -5,14 +5,15 @@ import { Note } from "@/models/note";
 import store from "@/store";
 import Manager from "./abstract";
 import { BaseEventLayer, baseEventTypes, extendedEventTypes } from "@/models/eventLayer";
+import { createCatchErrorByMessage } from "@/tools/catchError";
 
 export default class SelectionManager extends Manager {
     readonly selectedElements: SelectedElement[] = reactive([]);
     constructor() {
         super();
-        globalEventEmitter.on("DELETE", () => {
+        globalEventEmitter.on("DELETE", createCatchErrorByMessage(() => {
             this.deleteSelection();
-        })
+        }, "删除"))
         globalEventEmitter.on("SELECT_ALL", () => {
             this.selectAll();
         })

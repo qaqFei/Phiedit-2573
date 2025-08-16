@@ -15,7 +15,18 @@
             :min="0"
         >
             <template #prepend>
-                判定线宽度
+                判定线粗细
+            </template>
+            <template #append>
+                像素
+            </template>
+        </MyInputNumber>
+        <MyInputNumber
+            v-model="settingsManager.settings.lineLength"
+            :min="0"
+        >
+            <template #prepend>
+                判定线长度
             </template>
             <template #append>
                 像素
@@ -55,6 +66,23 @@
                 像素
             </template>
         </MyInputNumber>
+        <MyInputNumber
+            v-model="settingsManager.settings.wheelSpeed"
+            :min="0"
+        >
+            <template #prepend>
+                滚轮速度
+            </template>
+        </MyInputNumber>
+        <MySwitch v-model="settingsManager.settings.showJudgeLineNumber">
+            显示判定线编号
+        </MySwitch>
+        <MySwitch v-model="settingsManager.settings.showEventValues">
+            在界面底部显示当前事件值
+        </MySwitch>
+        <MySwitch v-model="settingsManager.settings.markCurrentJudgeLine">
+            把当前判定线标记为绿色
+        </MySwitch>
         <MyInputNumber v-model="settingsManager.settings.autoplayOffset">
             <template #prepend>
                 判定偏移
@@ -105,7 +133,8 @@ import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
 import store from '@/store';
 import MyButton from '@/myElements/MyButton.vue';
 // import { ElCheckbox } from 'element-plus';
-import { ref } from 'vue';
+import { onBeforeUnmount, ref } from 'vue';
+import MySwitch from '@/myElements/MySwitch.vue';
 const props = defineProps<{
     titleTeleport: string
 }>();
@@ -115,6 +144,9 @@ function update() {
 }
 // const resourcePackage = store.useResourcePackage();
 const settingsManager = store.useManager("settingsManager");
+onBeforeUnmount(()=>{
+    window.electronAPI.writeSettings(settingsManager._settings);
+})
 </script>
 <style scoped>
 .settings-panel {

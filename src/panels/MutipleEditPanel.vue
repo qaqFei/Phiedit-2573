@@ -65,7 +65,7 @@
             <template #footer="{ close }">
                 <MyButton
                     type="primary"
-                    @click="clone(), close()"
+                    @click="catchErrorByMessage(() => clone(), '克隆'), close()"
                 >
                     确定
                 </MyButton>

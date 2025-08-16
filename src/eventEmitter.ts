@@ -4,6 +4,7 @@ import type { NoteType } from "./models/note";
 import EventEmitter from "./tools/eventEmitter";
 type PositionX = number;
 type PositionY = number;
+type DeltaY = number;
 type KeyOptions = {
     ctrl: boolean;
     shift: boolean;
@@ -19,6 +20,11 @@ interface GlobalEventMap {
     MOUSE_RIGHT_CLICK: [PositionX, PositionY, KeyOptions]
     MOUSE_MOVE: [PositionX, PositionY, KeyOptions]
     MOUSE_UP: [PositionX, PositionY, KeyOptions]
+    MOUSE_ENTER: []
+    MOUSE_LEAVE: []
+    WHEEL: [DeltaY]
+    CTRL_WHEEL: [DeltaY]
+    RENDER_FRAME: []
     RENDER_CHART: []
     RENDER_EDITOR: []
     CUT: []
@@ -53,6 +59,7 @@ interface GlobalEventMap {
     REPEAT_PARAGRAPH: []
     REVERSE: []
     SWAP: []
+    STICK: []
     DISABLE: []
     ENABLE: []
     FILL_NOTES: [NoteType, EasingType, number]

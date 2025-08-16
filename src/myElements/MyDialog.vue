@@ -1,10 +1,10 @@
 <template>
-    <ElButton
+    <MyButton
         type="primary"
         @click="isShow = true"
     >
         {{ openText }}
-    </ElButton>
+    </MyButton>
     <ElDialog
         v-model="isShow"
         :title="title || openText"
@@ -38,6 +38,7 @@
 </template>
 <script setup lang="ts">
 import { ElDialog } from 'element-plus'
+import MyButton from './MyButton.vue';
 const isShow = defineModel<boolean>();
 withDefaults(defineProps<{
     title?: string,

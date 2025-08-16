@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { defaultSettings } from "./managers/settings";
 
 const electronAPI: ElectronAPI = {
     loadChart: (chartPackagePath: string) => ipcRenderer.invoke("load-chart", chartPackagePath),
@@ -21,6 +22,8 @@ const electronAPI: ElectronAPI = {
         level: string
     }) => ipcRenderer.invoke("write-chart-info", chartId, infoObj),
     readResourcePackage: () => ipcRenderer.invoke("read-resource-package"),
+    readSettings: () => ipcRenderer.invoke("read-settings"),
+    writeSettings: (settings: typeof defaultSettings) => ipcRenderer.invoke("write-settings", settings),
 }
 
 interface ElectronAPI {
@@ -59,6 +62,8 @@ interface ElectronAPI {
         level: string
     }) => Promise<void>,
     readResourcePackage: () => Promise<ArrayBuffer>,
+    readSettings: () => Promise<object | null>,
+    writeSettings: (settings: typeof defaultSettings) => Promise<void>
 }
 
 // 扩展 Window 接口以包含 electronAPI

@@ -15,8 +15,8 @@ export default class Constants {
     static readonly eventDisabledColor: RGBAcolor = [255, 0, 0, 0.6] as const
     static readonly eventTextColor: RGBcolor = [255, 165, 0] as const
     static readonly eventLineColor: RGBcolor = [0, 205, 255] as const
-    static readonly notesViewBox = new Box(0, 900, 50, 650)
-    static readonly eventsViewBox = new Box(0, 900, 700, 1300)
+    static readonly notesViewBox = new Box(0, 800, 50, 650)
+    static readonly eventsViewBox = new Box(0, 800, 700, 1300)
     static readonly eventWidth = 80
     static readonly selectPadding = 20
     static readonly eventLinePrecision = 0.01

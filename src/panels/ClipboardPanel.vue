@@ -7,10 +7,10 @@
             当前剪贴板内有{{ clipboardManager.clipboard.length }}个元素
         </em>
         <MyButton @click="globalEventEmitter.emit('CUT')">
-            剪切
+            剪切（Ctrl+X）
         </MyButton>
         <MyButton @click="globalEventEmitter.emit('COPY')">
-            复制
+            复制（Ctrl+C）
         </MyButton>
         <MyInputBeats v-model="time">
             <template #prepend>
@@ -18,10 +18,22 @@
             </template>
         </MyInputBeats>
         <MyButton @click="globalEventEmitter.emit('PASTE', time)">
-            粘贴
+            粘贴（Ctrl+V）
         </MyButton>
         <MyButton @click="globalEventEmitter.emit('PASTE_MIRROR', time)">
-            镜像粘贴
+            镜像粘贴（Ctrl+B）
+            <MyQuestionMark>
+                镜像粘贴会把音符镜像，事件值变为相反数。<br>
+                只对moveX、moveY、rotate事件有效。<br>
+            </MyQuestionMark>
+        </MyButton>
+        <MyButton @click="globalEventEmitter.emit('REPEAT')">
+            连续粘贴（Ctrl+Shift+V）
+            <MyQuestionMark>
+                连续粘贴会把选中的音符或事件重复一遍，使新的与原来的首尾相接。<br>
+                例如连续粘贴一个长度为4拍的事件，就会把这个事件复制，并延后4拍，再粘贴。<br>
+                不会影响剪切板。<br>
+            </MyQuestionMark>
         </MyButton>
         <MyDialog open-text="重复段落批量复制">
             <template #default="{ close }">
@@ -90,6 +102,7 @@ import store from '@/store';
 import MyButton from '@/myElements/MyButton.vue';
 import { ref } from 'vue';
 import { FlipOptions } from '@/managers/paragraphRepeater';
+import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
 const props = defineProps<{
     titleTeleport: string
 }>();

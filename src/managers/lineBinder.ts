@@ -40,14 +40,14 @@ export default class LineBinder extends Manager {
         const judgeLineNumber = selectedNotes[0].judgeLineNumber;
         const sourceJudgeLine = store.getJudgeLineById(judgeLineNumber);
         // 为防止事件层级不够用，先检查有没有判定线事件层级数量比原来判定线少的，有的话就添加到一样多为止
-        for (const lineNumber of lineNumbers) {
-            const judgeLine = store.getJudgeLineById(lineNumber);
-            if (judgeLine.eventLayers.length < sourceJudgeLine.eventLayers.length) {
-                for (let i = judgeLine.eventLayers.length; i < sourceJudgeLine.eventLayers.length; i++) {
-                    judgeLine.addEventLayer();
-                }
-            }
-        }
+        // for (const lineNumber of lineNumbers) {
+        //     const judgeLine = store.getJudgeLineById(lineNumber);
+        //     if (judgeLine.eventLayers.length < sourceJudgeLine.eventLayers.length) {
+        //         for (let i = judgeLine.eventLayers.length; i < sourceJudgeLine.eventLayers.length; i++) {
+        //             judgeLine.addEventLayer();
+        //         }
+        //     }
+        // }
         historyManager.group("绑线");
         // 先复制所有的旋转事件到新判定线上，从第一个音符提前eventLength开始，到最后一个音符结束
         const startTime = subBeats(selectedNotes[0].startTime, eventLength);
@@ -137,21 +137,23 @@ export default class LineBinder extends Manager {
                 isDisabled: false
             }, "speed", "0", bindedLineNumber);
             historyManager.recordAddEvent(fastSpeedEvent.id);
-            // 用速度为0的事件进行绑线
-            const zeroSpeedEvent = store.addEvent({
-                bezier: 0,
-                bezierPoints: [0, 0, 0, 0],
-                easingLeft: 0,
-                easingRight: 1,
-                easingType: EasingType.Linear,
-                end: 0,
-                start: 0,
-                startTime: partStartTime,
-                endTime: bindedNote.startTime,
-                linkgroup: 0,
-                isDisabled: false
-            }, "speed", "0", bindedLineNumber);
-            historyManager.recordAddEvent(zeroSpeedEvent.id);
+            // 用速度为0的事件进行绑线，要遍历所有的事件层级并全部设为0，以保证最终速度为0
+            for (let i = 0; i < bindedLine.eventLayers.length; i++) {
+                const zeroSpeedEvent = store.addEvent({
+                    bezier: 0,
+                    bezierPoints: [0, 0, 0, 0],
+                    easingLeft: 0,
+                    easingRight: 1,
+                    easingType: EasingType.Linear,
+                    end: 0,
+                    start: 0,
+                    startTime: partStartTime,
+                    endTime: bindedNote.startTime,
+                    linkgroup: 0,
+                    isDisabled: false
+                }, "speed", i.toString(), bindedLineNumber);
+                historyManager.recordAddEvent(zeroSpeedEvent.id);
+            }
             // 如果是Hold音符，则需要在打击时把速度恢复正常
             if (bindedNote.type == NoteType.Hold) {
                 const normalSpeedEvent = store.addEvent({

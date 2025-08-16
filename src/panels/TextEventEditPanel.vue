@@ -12,6 +12,13 @@
         >
             <template #prepend>
                 时间
+                <MyQuestionMark>
+                    输入开始时间和结束时间，以空格隔开<br>
+                    开始时间和结束时间的格式都要满足“a.b/c”，<br>
+                    其中a、b、c均为整数，表示第a又c分之b拍。<br>
+                    特殊的，如果b=0，则c必须等于1，表示第a拍。<br>
+                    因此，只能输入有理数时间。<br>
+                </MyQuestionMark>
             </template>
         </MyInput>
         <!-- <MyInput
@@ -32,6 +39,12 @@
         >
             <template #prepend>
                 起始文字
+                <MyQuestionMark>
+                    请输入起始文字。<br>
+                    该事件为text事件，用于控制判定线显示的文字。<br>
+                    只要有了text事件，就无法再显示原来的判定线了，只能显示文字。<br>
+                    有贴图的判定线无法使用text事件。<br>
+                </MyQuestionMark>
             </template>
         </MyInput>
         <MyInput
@@ -42,6 +55,13 @@
         >
             <template #prepend>
                 结束文字
+                <MyQuestionMark>
+                    请输入结束文字。<br>
+                    结束文字大多数时候都应该与起始文字相同。也有特殊情况：<br>
+                    如果起始文字是结束文字的前缀，或结束文字是起始文字的前缀，<br>
+                    就会显现一种文字逐渐出现的效果。<br>
+                    起始文字和结束文字<em>不能</em>互不为前缀。<br>
+                </MyQuestionMark>
             </template>
         </MyInput>
         <MySwitch
@@ -74,9 +94,29 @@
         >
             禁用
         </MySwitch>
-        <MyButton @click="swap">
-            交换起始和结束值（Alt + S）
-        </MyButton>
+        <MyGridContainer :columns="3">
+            <ElTooltip>
+                <template #default>
+                    <MyButton @click="swap">
+                        交换
+                    </MyButton>
+                </template>
+                <template #content>
+                    把事件的开始值和结束值交换<br>
+                    快捷键：Alt + S<br>
+                </template>
+            </ElTooltip><ElTooltip>
+                <template #default>
+                    <MyButton @click="stick">
+                        粘合
+                    </MyButton>
+                </template>
+                <template #content>
+                    把这个事件的起始值设为和上一个事件的结束值相同<br>
+                    快捷键：Alt + D<br>
+                </template>
+            </ElTooltip>
+        </MyGridContainer>
         <h3>缓动曲线截取</h3>
         <ElSlider
             v-model="inputEvent.easingLeftRight"
@@ -95,11 +135,13 @@ import { IEvent, TextEvent } from "../models/event";
 import MyInput from "../myElements/MyInput.vue";
 import MySwitch from "../myElements/MySwitch.vue";
 import MySelectEasing from "@/myElements/MySelectEasing.vue";
-import { addBeats, formatBeats, isEqualBeats, parseBeats, validateBeats } from "@/models/beats";
+import { addBeats, beatsCompare, formatBeats, isEqualBeats, isLessThanOrEqualBeats, parseBeats, validateBeats } from "@/models/beats";
 import { onBeforeUnmount, onMounted, reactive, useTemplateRef } from "vue";
 import { Ref, watch } from "vue";
 import globalEventEmitter from "@/eventEmitter";
 import store from "@/store";
+import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
+import MyGridContainer from '@/myElements/MyGridContainer.vue';
 const model = defineModel<TextEvent>({
     required: true,
 }) as Ref<TextEvent>;
@@ -228,6 +270,7 @@ function updateModel<K extends keyof IEvent<number>>(...attrNames: K[]) {
 }
 onMounted(() => {
     globalEventEmitter.on("SWAP", swap);
+    globalEventEmitter.on("STICK", stick);
 });
 onBeforeUnmount(() => {
     try {
@@ -237,11 +280,30 @@ onBeforeUnmount(() => {
         console.error(e);
     }
     globalEventEmitter.off("SWAP", swap);
+    globalEventEmitter.off("STICK", stick);
 });
 function swap() {
     [inputEvent.start, inputEvent.end] = [inputEvent.end, inputEvent.start];
     updateModel("start", "end");
     createHistory();
+}
+function stick() {
+    const judgeLine = store.getJudgeLineById(model.value.judgeLineNumber);
+    const eventLayer = judgeLine.getEventLayerById(model.value.eventLayerId);
+    const events = eventLayer.getEventsByType(model.value.type) as TextEvent[];
+    events.sort((event1, event2) => beatsCompare(event1.endTime, event2.endTime));
+    // 找到结束时间小于model的开始时间的最大的事件
+    let event = undefined;
+    for (let i = events.length - 1; i >= 0; i--) {
+        if (isLessThanOrEqualBeats(events[i].endTime, model.value.startTime)) {
+            event = events[i];
+            break;
+        }
+    }
+    if (!event) {
+        throw new Error("当前事件前面没有事件，无法粘合")
+    }
+    model.value.start = event.end;
 }
 </script>
 <style scoped>

@@ -2,7 +2,7 @@ import { Note, NoteAbove, NoteFake, NoteType } from "@/models/note";
 import { Box, BoxWithData } from "@/tools/box";
 import MathUtils from "@/tools/mathUtils";
 import { MouseMoveMode, SelectedElement } from "@/types";
-import { floor } from "lodash";
+import { clamp, floor } from "lodash";
 import Constants from "../constants";
 import globalEventEmitter from "@/eventEmitter";
 import { EasingType } from "@/models/easing";
@@ -27,6 +27,8 @@ export default class MouseManager extends Manager {
     private oldPositionX: number = 0;
     // 已被添加还没有被记录的元素
     private addedElement: SelectedElement | null = null;
+    private wheelVelocity: number = 0;
+    isHovering = false;
     constructor() {
         super();
         globalEventEmitter.on("MOUSE_LEFT_CLICK", (x, y, options) => {
@@ -40,6 +42,21 @@ export default class MouseManager extends Manager {
         })
         globalEventEmitter.on("MOUSE_UP", (x, y, options) => {
             this.mouseUp(options.ctrl);
+        })
+        globalEventEmitter.on("MOUSE_ENTER", () => {
+            this.mouseEnter();
+        })
+        globalEventEmitter.on("MOUSE_LEAVE", () => {
+            this.mouseLeave();
+        })
+        globalEventEmitter.on("WHEEL", (deltaY) => {
+            this.wheel(deltaY);
+        })
+        globalEventEmitter.on("CTRL_WHEEL", (deltaY) => {
+            this.ctrlWheel(deltaY);
+        })
+        globalEventEmitter.on("RENDER_FRAME", () => {
+            this.updateWheelVelocity();
         })
     }
     /**
@@ -292,5 +309,42 @@ export default class MouseManager extends Manager {
             this.mouseMoveMode = MouseMoveMode.DragEnd;
         }
         this.mousePressed = true;
+    }
+    mouseEnter() {
+        this.isHovering = true;
+    }
+    mouseLeave() {
+        this.isHovering = false;
+    }
+    wheel(deltaY: number) {
+        const settingsManager = store.useManager("settingsManager");
+        const audio = store.useAudio();
+        this.wheelVelocity += deltaY * settingsManager.settings.wheelSpeed;
+        this.wheelVelocity = clamp(this.wheelVelocity, -100, 100);
+        // 如果是在音乐播放时滚动滚轮，则暂停音乐
+        if (!audio.paused) {
+            audio.pause();
+        }
+    }
+    ctrlWheel(deltaY: number) {
+        const stateManager = store.useManager("stateManager");
+        stateManager.state.pxPerSecond = clamp(
+            stateManager.state.pxPerSecond + deltaY * -0.05,
+            1,
+            1000
+        );
+    }
+    private updateWheelVelocity() {
+        const stateManager = store.useManager("stateManager");
+        const audio = store.useAudio();
+        if (!audio.paused) {
+            this.wheelVelocity = 0;
+            return;
+        }
+        audio.currentTime += this.wheelVelocity / -stateManager.state.pxPerSecond;
+        this.wheelVelocity *= 0.9;
+        if (Math.abs(this.wheelVelocity) < 1) {
+            this.wheelVelocity = 0;
+        }
     }
 }

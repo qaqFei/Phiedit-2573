@@ -23,7 +23,7 @@ const easingOptions = Object.keys(EasingType)
     // 过滤掉字符串，保留数字键
     .filter(key => !isNaN(Number(key)))
     .map(key => ({
-        label: `${key}. ${EasingType[+key]}`,
+        label: `缓动类型：${key}. ${EasingType[+key]}`,
         text: `${key}. ${EasingType[+key]}`,
         value: +key
     }));

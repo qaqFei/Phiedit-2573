@@ -5,9 +5,10 @@ import globalEventEmitter from "@/eventEmitter";
 import { createCatchErrorByMessage } from "@/tools/catchError";
 import store from "@/store";
 import Manager from "./abstract";
+import { reactive } from "vue";
 
 export default class ClipboardManager extends Manager {
-    clipboard: SelectedElement[] = []
+    readonly clipboard: SelectedElement[] = reactive([])
     constructor() {
         super();
         globalEventEmitter.on("CUT", createCatchErrorByMessage(() => {
@@ -30,6 +31,9 @@ export default class ClipboardManager extends Manager {
         const mouseManager = store.useManager("mouseManager");
         mouseManager.checkMouseUp();
         const selectionManager = store.useManager("selectionManager");
+        if (selectionManager.selectedElements.length == 0) {
+            throw new Error("未选择任何元素")
+        }
         this.copy();
         selectionManager.deleteSelection();
     }
@@ -38,13 +42,19 @@ export default class ClipboardManager extends Manager {
      */
     copy() {
         const selectionManager = store.useManager("selectionManager");
-        if(selectionManager.selectedElements.length == 0) return;
-        this.clipboard = [...selectionManager.selectedElements];
+        if (selectionManager.selectedElements.length == 0) {
+            throw new Error("未选择任何元素")
+        }
+        this.clipboard.length = 0;
+        this.clipboard.push(...selectionManager.selectedElements);
     }
     /**
      * 把剪切板内的元素粘贴到鼠标位置
      */
     paste(time?: Beats) {
+        if (this.clipboard.length == 0) {
+            throw new Error("剪切板为空")
+        }
         const stateManager = store.useManager("stateManager");
         const selectionManager = store.useManager("selectionManager");
         const mouseManager = store.useManager("mouseManager");
@@ -92,7 +102,7 @@ export default class ClipboardManager extends Manager {
                 element.positionX = -element.positionX;
             }
             else {
-                if (element.type == "moveX" || element.type == "moveY" || element.type == "rotate"){
+                if (element.type == "moveX" || element.type == "moveY" || element.type == "rotate") {
                     historyManager.recordModifyEvent(element.id, "start", -element.start, element.start);
                     historyManager.recordModifyEvent(element.id, "end", -element.end, element.end);
                     element.start = -element.start;

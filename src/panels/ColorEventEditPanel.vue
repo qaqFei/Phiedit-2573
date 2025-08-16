@@ -12,6 +12,13 @@
         >
             <template #prepend>
                 时间
+                <MyQuestionMark>
+                    输入开始时间和结束时间，以空格隔开<br>
+                    开始时间和结束时间的格式都要满足“a.b/c”，<br>
+                    其中a、b、c均为整数，表示第a又c分之b拍。<br>
+                    特殊的，如果b=0，则c必须等于1，表示第a拍。<br>
+                    因此，只能输入有理数时间。<br>
+                </MyQuestionMark>
             </template>
         </MyInput>
         <MyInput
@@ -22,6 +29,14 @@
         >
             <template #prepend>
                 颜色
+                <MyQuestionMark>
+                    请输入两个RGB颜色值，中间用空格隔开，R、G、B三个颜色分量用英文的逗号隔开。<br>
+                    也可以输入形如“#rrggbb”形式的颜色值。请把“rrggbb”替换为实际的颜色分量值。<br>
+                    该事件为color事件，用来控制判定线的颜色。<br>
+                    如果判定线有贴图，控制的就是贴图的颜色。（采用正片叠底的混合模式）<br>
+                    如果判定线有文字，控制的就是文字的颜色。<br>
+                    如果都没有，控制的就是判定线本身的颜色。<br>
+                </MyQuestionMark>
             </template>
         </MyInput>
         <MySwitch
@@ -54,12 +69,40 @@
         >
             禁用
         </MySwitch>
-        <MyButton @click="reverse">
-            反色（Alt + A）
-        </MyButton>
-        <MyButton @click="swap">
-            交换起始和结束值（Alt + S）
-        </MyButton>
+        <MyGridContainer :columns="3">
+            <ElTooltip>
+                <template #default>
+                    <MyButton @click="reverse">
+                        反色
+                    </MyButton>
+                </template>
+                <template #content>
+                    把事件的开始值和结束值都变为原来的反色<br>
+                    快捷键：Alt + A<br>
+                </template>
+            </ElTooltip>
+            <ElTooltip>
+                <template #default>
+                    <MyButton @click="swap">
+                        交换
+                    </MyButton>
+                </template>
+                <template #content>
+                    把事件的开始值和结束值交换<br>
+                    快捷键：Alt + S<br>
+                </template>
+            </ElTooltip><ElTooltip>
+                <template #default>
+                    <MyButton @click="stick">
+                        粘合
+                    </MyButton>
+                </template>
+                <template #content>
+                    把这个事件的起始值设为和上一个事件的结束值相同<br>
+                    快捷键：Alt + D<br>
+                </template>
+            </ElTooltip>
+        </MyGridContainer>
         <h3>缓动曲线截取</h3>
         <ElSlider
             v-model="inputEvent.easingLeftRight"
@@ -78,12 +121,14 @@ import { IEvent, ColorEvent } from "../models/event";
 import MyInput from "../myElements/MyInput.vue";
 import MySwitch from "../myElements/MySwitch.vue";
 import MySelectEasing from "@/myElements/MySelectEasing.vue";
-import { addBeats, formatBeats, isEqualBeats, parseBeats, validateBeats } from "@/models/beats";
+import { addBeats, beatsCompare, formatBeats, isEqualBeats, isLessThanOrEqualBeats, parseBeats, validateBeats } from "@/models/beats";
 import { onBeforeUnmount, onMounted, reactive, useTemplateRef } from "vue";
 import { Ref, watch } from "vue";
 import globalEventEmitter from "@/eventEmitter";
 import store from "@/store";
 import { formatRGBcolor, isEqualRGBcolors, parseRGBcolor, RGBcolor } from '@/tools/color';
+import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
+import MyGridContainer from '@/myElements/MyGridContainer.vue';
 const model = defineModel<ColorEvent>({
     required: true,
 }) as Ref<ColorEvent>;
@@ -240,6 +285,7 @@ function updateModel<K extends keyof IEvent<number>>(...attrNames: K[]) {
 onMounted(() => {
     globalEventEmitter.on("REVERSE", reverse);
     globalEventEmitter.on("SWAP", swap);
+    globalEventEmitter.on("STICK", stick);
 });
 onBeforeUnmount(() => {
     try {
@@ -250,6 +296,7 @@ onBeforeUnmount(() => {
     }
     globalEventEmitter.off("REVERSE", reverse);
     globalEventEmitter.off("SWAP", swap);
+    globalEventEmitter.off("STICK", stick);
 });
 function reverse() {
     for (let i = 0; i < 3; i++) {
@@ -263,6 +310,24 @@ function swap() {
     [inputEvent.start, inputEvent.end] = [inputEvent.end, inputEvent.start];
     updateModel("start", "end");
     createHistory();
+}
+function stick() {
+    const judgeLine = store.getJudgeLineById(model.value.judgeLineNumber);
+    const eventLayer = judgeLine.getEventLayerById(model.value.eventLayerId);
+    const events = eventLayer.getEventsByType(model.value.type) as ColorEvent[];
+    events.sort((event1, event2) => beatsCompare(event1.endTime, event2.endTime));
+    // 找到结束时间小于model的开始时间的最大的事件
+    let event = undefined;
+    for (let i = events.length - 1; i >= 0; i--) {
+        if (isLessThanOrEqualBeats(events[i].endTime, model.value.startTime)) {
+            event = events[i];
+            break;
+        }
+    }
+    if (!event) {
+        throw new Error("当前事件前面没有事件，无法粘合")
+    }
+    model.value.start = event.end;
 }
 </script>
 <style scoped>

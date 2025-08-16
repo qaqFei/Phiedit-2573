@@ -22,19 +22,48 @@ export function isEqualRGBcolors(color1: RGBcolor, color2: RGBcolor) {
 }
 
 export function parseRGBcolor(color: string): RGBcolor | null {
-    const split = color.split(",");
-    if (split.length != 3) {
-        return null;
+    if (color.startsWith("#")) {
+        if (color.length < 3) {
+            return null;
+        }
+        if (color.length < 7) {
+            const r = parseInt(color.substring(1, 2), 16);
+            const g = parseInt(color.substring(2, 3), 16);
+            const b = parseInt(color.substring(3, 4), 16);
+            if (isNaN(r) || isNaN(g) || isNaN(b)) {
+                return null;
+            }
+            return [r << 4 | r, g << 4 | g, b << 4 | b];
+        }
+        else {
+            const r = parseInt(color.substring(1, 3), 16);
+            const g = parseInt(color.substring(3, 5), 16);
+            const b = parseInt(color.substring(5, 7), 16);
+            if (isNaN(r) || isNaN(g) || isNaN(b)) {
+                return null;
+            }
+            return [r, g, b];
+        }
     }
-    const r = +split[0], g = +split[1], b = +split[2];
-    if (isNaN(r) || isNaN(g) || isNaN(b)) {
-        return null;
+    else {
+        const split = color.split(",");
+        if (split.length != 3) {
+            return null;
+        }
+        const r = +split[0], g = +split[1], b = +split[2];
+        if (isNaN(r) || isNaN(g) || isNaN(b)) {
+            return null;
+        }
+        return [r, g, b];
     }
-    return [r, g, b];
 }
 
 export function RGBAtoRGB(color: RGBAcolor): RGBcolor {
     return [color[0], color[1], color[2]];
+}
+
+export function RGBtoRGBA(color: RGBcolor, alpha: number): RGBAcolor {
+    return [color[0], color[1], color[2], alpha];
 }
 
 export function colorToHex(color: RGBcolor): string {

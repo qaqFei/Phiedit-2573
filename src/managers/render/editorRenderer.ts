@@ -1,5 +1,5 @@
 import { Beats, beatsToSeconds, getBeatsValue } from "@/models/beats";
-import { NumberEvent, interpolateNumberEventValue, findLastEvent, ColorEvent, TextEvent, interpolateColorEventValue } from "@/models/event";
+import { NumberEvent, interpolateNumberEventValue, findLastEvent, ColorEvent, TextEvent, interpolateColorEventValue, interpolateTextEventValue } from "@/models/event";
 import { Note, NoteType } from "@/models/note";
 import { checkAndSort } from "@/tools/algorithm";
 import canvasUtils from "@/tools/canvasUtils";
@@ -63,13 +63,16 @@ export default class EditorRenderer extends Manager {
         const drawLine = canvasUtils.drawLine.bind(ctx);
         const drawRect = canvasUtils.drawRect.bind(ctx);
         const writeText = canvasUtils.writeText.bind(ctx);
-        // 显示横线
+        // 显示横线及其旁边的数字
         const min = floor(stateManager.getBeatsOfRelativePositionY(Constants.notesViewBox.bottom));
         const max = ceil(stateManager.getBeatsOfRelativePositionY(Constants.notesViewBox.top));
         for (let i = min; i <= max; i++) {
             for (let j = 0; j < stateManager.state.horizonalLineCount; j++) {
                 const beats: Beats = [i, j, stateManager.state.horizonalLineCount];
                 const pos = stateManager.getRelativePositionYOfSeconds(beatsToSeconds(chart.BPMList, beats));
+                if (pos < Constants.eventsViewBox.top || pos > Constants.eventsViewBox.bottom) {
+                    continue;
+                }
                 if (j == 0) {
                     writeText(i.toString(),
                         (Constants.eventsViewBox.left + Constants.notesViewBox.right) / 2,
@@ -170,6 +173,7 @@ export default class EditorRenderer extends Manager {
         const chart = chartPackage.chart;
         const ctx = canvasUtils.getContext(canvas);
         const drawRect = canvasUtils.drawRect.bind(ctx);
+        const writeText = canvasUtils.writeText.bind(ctx);
         const judgeLine = stateManager.currentJudgeLine;
         const a = stateManager.attatchY(mouseManager.mouseY);
         const imaginaryNote = {
@@ -231,13 +235,21 @@ export default class EditorRenderer extends Manager {
                     / resourcePackage.getSkin(note.type, false).body.width;
 
                 const noteX = note.positionX * (Constants.notesViewBox.width / canvas.width) + Constants.notesViewBox.left + Constants.notesViewBox.width / 2;
-                const noteStartY = getRelativePositionYOfSeconds(noteStartSeconds);
+                let noteStartY = getRelativePositionYOfSeconds(noteStartSeconds);
                 const noteEndY = getRelativePositionYOfSeconds(noteEndSeconds);
+                let isCuttedStart = false;
+                if (noteEndY > Constants.notesViewBox.bottom) {
+                    continue;
+                }
+                if (noteStartY > Constants.notesViewBox.bottom) {
+                    noteStartY = Constants.notesViewBox.bottom;
+                    isCuttedStart = true;
+                }
                 const noteHeight = noteStartY - noteEndY;
                 const noteHeadHeight = head.height / body.width * noteWidth;
                 const noteEndHeight = end.height / body.width * noteWidth;
-
-                ctx.drawImage(head, noteX - noteWidth / 2, noteStartY, noteWidth, noteHeadHeight);
+                if (!isCuttedStart || resourcePackage.config.holdKeepHead)
+                    ctx.drawImage(head, noteX - noteWidth / 2, noteStartY, noteWidth, noteHeadHeight);
                 ctx.drawImage(body, noteX - noteWidth / 2, noteEndY, noteWidth, noteHeight);
                 ctx.drawImage(end, noteX - noteWidth / 2, noteEndY - noteEndHeight, noteWidth, noteEndHeight);
                 const box = new Box(noteEndY - noteEndHeight, noteStartY + noteHeadHeight, noteX - noteWidth / 2, noteX + noteWidth / 2);
@@ -272,7 +284,9 @@ export default class EditorRenderer extends Manager {
                 const noteHeight = noteImage.height / noteImage.width * baseSize;
                 const noteX = note.positionX * (Constants.notesViewBox.width / canvas.width) + Constants.notesViewBox.left + Constants.notesViewBox.width / 2;
                 const noteY = getRelativePositionYOfSeconds(noteStartSeconds);
-
+                if (noteY < Constants.notesViewBox.top || noteY > Constants.notesViewBox.bottom) {
+                    continue;
+                }
                 ctx.drawImage(
                     noteImage,
                     noteX - noteWidth / 2,
@@ -301,11 +315,14 @@ export default class EditorRenderer extends Manager {
                 }
             }
         }
+        writeText("在上面区域右键，以放置音符", Constants.notesViewBox.middleX, 830, 30, "white", true);
+        writeText("在右侧区域右键并拖动，以放置事件", Constants.notesViewBox.middleX, 870, 30, "white", true);
     }
     /** 显示事件 */
     private renderEvents() {
         const stateManager = store.useManager("stateManager");
         const selectionManager = store.useManager("selectionManager");
+        const settingsManager = store.useManager("settingsManager");
         const mouseManager = store.useManager("mouseManager");
 
         const canvas = store.useCanvas();
@@ -371,8 +388,21 @@ export default class EditorRenderer extends Manager {
                     const event = group[j];
                     const startSeconds = event.cachedStartSeconds;
                     const endSeconds = event.cachedEndSeconds;
-                    const eventStartY = getRelativePositionYOfSeconds(startSeconds);
-                    const eventEndY = getRelativePositionYOfSeconds(endSeconds);
+                    let eventStartY = getRelativePositionYOfSeconds(startSeconds);
+                    let eventEndY = getRelativePositionYOfSeconds(endSeconds);
+                    let isCuttedStart = false;
+                    let isCuttedEnd = false;
+                    if (eventEndY > Constants.eventsViewBox.bottom || eventStartY < Constants.eventsViewBox.top) {
+                        continue;
+                    }
+                    if (eventEndY < Constants.eventsViewBox.top) {
+                        eventEndY = Constants.eventsViewBox.top;
+                        isCuttedEnd = true;
+                    }
+                    if (eventStartY > Constants.eventsViewBox.bottom) {
+                        eventStartY = Constants.eventsViewBox.bottom;
+                        isCuttedStart = true;
+                    }
                     const eventHeight = eventStartY - eventEndY;
 
                     const box = new Box(eventEndY, eventStartY, eventX - Constants.eventWidth / 2, eventX + Constants.eventWidth / 2);
@@ -408,7 +438,7 @@ export default class EditorRenderer extends Manager {
                     }
 
                     // 如果是本组的第一个事件
-                    if (j == 0) {
+                    if (j == 0 && !isCuttedStart) {
                         // 显示开头文字
                         if (event instanceof NumberEvent)
                             writeText(event.start.toFixed(2),
@@ -425,7 +455,7 @@ export default class EditorRenderer extends Manager {
                     }
 
                     // 如果是本组的最后一个事件
-                    if (j == group.length - 1) {
+                    if (j == group.length - 1 && !isCuttedEnd) {
                         // 显示结尾文字
                         if (event instanceof NumberEvent)
                             writeText(event.end.toFixed(2),
@@ -452,6 +482,9 @@ export default class EditorRenderer extends Manager {
                                 sec = endSeconds;
                             }
                             const y = getRelativePositionYOfSeconds(sec);
+                            if (y < Constants.eventsViewBox.top || y > Constants.eventsViewBox.bottom) {
+                                continue;
+                            }
                             const left = eventX - Constants.eventWidth / 2;
                             const right = eventX + Constants.eventWidth / 2;
                             const value = interpolateNumberEventValue(event, sec);
@@ -470,6 +503,9 @@ export default class EditorRenderer extends Manager {
                                 nextSec = endSeconds;
                             }
                             const y = getRelativePositionYOfSeconds(sec);
+                            if (y < Constants.eventsViewBox.top || y > Constants.eventsViewBox.bottom) {
+                                continue;
+                            }
                             const nextY = getRelativePositionYOfSeconds(nextSec);
                             const left = eventX - Constants.eventWidth / 4;
                             const right = eventX + Constants.eventWidth / 4;
@@ -480,13 +516,18 @@ export default class EditorRenderer extends Manager {
                     }
                 }
             }
+            writeText(type, eventX, 830, 30, "white", true);
+            if (!settingsManager._settings.showEventValues) continue;
             if (type == "color") {
                 const event = findLastEvent(events as ColorEvent[], seconds);
                 const color: RGBcolor = event ? interpolateColorEventValue(event, seconds) : [255, 255, 255];
-                writeText(colorToHex(color), eventX, Constants.eventsViewBox.bottom - 20, 30, color, true);
+                writeText(colorToHex(color), eventX, 860, 25, color, true);
             }
             else if (type == "text") {
-                // TODO: 显示文本
+                const event = findLastEvent(events as TextEvent[], seconds);
+                const text = event ? interpolateTextEventValue(event, seconds) : "";
+                // writeText(text, eventX, 860, 30, "white", false);
+                writeText(text, eventX, 860, 25, "white", true);
             }
             else {
                 const event = findLastEvent(events as NumberEvent[], seconds);
@@ -500,8 +541,8 @@ export default class EditorRenderer extends Manager {
                         currentEventValue ??= 0;
                 }
                 ctx.lineWidth = 5;
-                writeText(currentEventValue.toFixed(2), eventX, Constants.eventsViewBox.bottom - 20, 30, "white", false);
-                writeText(currentEventValue.toFixed(2), eventX, Constants.eventsViewBox.bottom - 20, 30, "blue", true);
+                // writeText(currentEventValue.toFixed(2), eventX, 860, 30, "white", false);
+                writeText(currentEventValue.toFixed(2), eventX, 860, 25, "white", true);
             }
         }
     }

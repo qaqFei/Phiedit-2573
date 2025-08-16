@@ -177,24 +177,12 @@ export class JudgeLine implements IJudgeLine {
         return newNote;
     }
     addEventLayer() {
+        if(this.eventLayers.length >= 4){
+            throw new Error("最多只能有4个事件层级")
+        }
         const newEventLayer = this.createAnInitializedEventLayer(0, 0, 0, 0, 0);
         this.eventLayers.push(newEventLayer);
         return newEventLayer;
-    }
-    initializeEvents() {
-        this.eventLayers.push(this.createAnInitializedEventLayer(0, 0, 0, 0, 10));
-        this.extended.inclineEvents.push(new NumberEvent({
-            startTime: [0, 0, 1],
-            endTime: [1, 0, 1],
-            start: 0,
-            end: 0
-        }, {
-            judgeLineNumber: this.options.judgeLineNumber,
-            eventLayerId: 'X',
-            eventNumber: 0,
-            type: 'incline',
-            BPMList: this.options.BPMList
-        }));
     }
     createAnInitializedEventLayer(x = 0, y = 0, angle = 0, alpha = 0, speed = 0) {
         return new BaseEventLayer({

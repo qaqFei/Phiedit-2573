@@ -7,10 +7,7 @@ export default class AutoplayManager extends Manager {
     score: number = 0;
     constructor() {
         super();
-        globalEventEmitter.on("RENDER_CHART", () => {
-            this.autoplay();
-        })
-        globalEventEmitter.on("RENDER_EDITOR", () => {
+        globalEventEmitter.on("RENDER_FRAME", () => {
             this.autoplay();
         })
     }

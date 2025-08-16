@@ -5,92 +5,23 @@ import { Note } from "@/models/note";
 import globalEventEmitter from "@/eventEmitter";
 import Manager from "./abstract";
 import { SelectedElement } from "@/types";
-// export enum CloneValidStateCode {
-//     OK,
-//     Overlap,
-//     TooFewJudgeLines,
-// }
-// interface CloneValidResult {
-//     code: CloneValidStateCode;
-//     message?: string;
-// }
+import { createCatchErrorByMessage } from "@/tools/catchError";
 export default class CloneManager extends Manager {
     readonly options = reactive({
         targetJudgeLines: new Array<number>(),
         targetEventLayer: 0,
         timeDuration: [8, 0, 1] as Beats,
         timeDelta: [0, 1, 4] as Beats,
-        // isContain: false
     })
     constructor() {
         super();
-        globalEventEmitter.on("CLONE", () => {
+        globalEventEmitter.on("CLONE", createCatchErrorByMessage(() => {
             this.clone();
-        })
-        globalEventEmitter.on("REPEAT", () => {
+        }, "克隆"))
+        globalEventEmitter.on("REPEAT", createCatchErrorByMessage(() => {
             this.repeat();
-        })
+        }, "连续粘贴"))
     }
-    // checkIsValid(): CloneValidResult {
-    //     const selectionManager = store.useManager("selectionManager");
-    //     const chart = store.useChart();
-    //     let beats: Beats = [0, 0, 1];
-    //     let i = 0;
-    //     const min = selectionManager.selectedElements.reduce<Beats>((prev, curr) => {
-    //         if (isLessThanBeats(prev, curr.startTime) || curr instanceof Note) {
-    //             return prev;
-    //         }
-    //         else {
-    //             return curr.startTime;
-    //         }
-    //     }, [0, 0, 1]);
-    //     const max = selectionManager.selectedElements.reduce<Beats>((prev, curr) => {
-    //         if (isGreaterThanBeats(prev, curr.endTime) || curr instanceof Note) {
-    //             return prev;
-    //         }
-    //         else {
-    //             return curr.endTime;
-    //         }
-    //     }, [0, 0, 1]);
-    //     const length = subBeats(max, min);
-    //     const minCountOfJudgeLines = divide2Beats(length, this.options.timeDelta);
-    //     if (this.options.targetJudgeLines.length < minCountOfJudgeLines) {
-    //         return {
-    //             code: CloneValidStateCode.TooFewJudgeLines,
-    //             message: `选择的判定线太少，在当前配置下请至少选择${minCountOfJudgeLines}条判定线`
-    //         };
-    //     }
-    //     while (isLessThanBeats(beats, this.options.timeDuration)) {
-    //         const judgeLine = chart.judgeLineList[this.options.targetJudgeLines[i]];
-    //         for (const element of selectionManager.selectedElements) {
-    //             if (!(element instanceof Note)) {
-    //                 const newStartTime = addBeats(element.startTime, beats);
-    //                 const newEndTime = addBeats(element.endTime, beats);
-    //                 const events = judgeLine.eventLayers[this.options.targetEventLayer].getEventsByType(element.type);
-    //                 if (events.some((event) => {
-    //                     const startTime1 = getBeatsValue(newStartTime);
-    //                     const endTime1 = getBeatsValue(newEndTime);
-    //                     const startTime2 = getBeatsValue(event.startTime);
-    //                     const endTime2 = getBeatsValue(event.endTime);
-    //                     return (
-    //                         startTime1 < endTime2 && startTime2 < endTime1
-    //                         && !selectionManager.isSelected(event)
-    //                     );
-    //                 })) {
-    //                     return {
-    //                         code: CloneValidStateCode.Overlap,
-    //                         message: `生成的事件在${judgeLine.id}号判定线上将与原有事件重叠`
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //         beats = addBeats(beats, this.options.timeDelta);
-    //         i = (i + 1) % this.options.targetJudgeLines.length;
-    //     }
-    //     return {
-    //         code: CloneValidStateCode.OK
-    //     };
-    // }
     clone() {
         const selectionManager = store.useManager("selectionManager");
         const historyManager = store.useManager("historyManager");
@@ -98,7 +29,9 @@ export default class CloneManager extends Manager {
         mouseManager.checkMouseUp();
         let beats: Beats = [0, 0, 1];
         let i = 0;
-
+        if (this.options.targetJudgeLines.length == 0) {
+            throw new Error("请选择要克隆的目标判定线");
+        }
         historyManager.group("克隆");
         while (isLessThanBeats(beats, this.options.timeDuration)) {
             for (const element of selectionManager.selectedElements) {
@@ -106,14 +39,14 @@ export default class CloneManager extends Manager {
                     const noteObject = element.toObject();
                     noteObject.startTime = addBeats(noteObject.startTime, beats);
                     noteObject.endTime = addBeats(noteObject.endTime, beats);
-                    const newNote = store.addNote(noteObject, element.judgeLineNumber);
+                    const newNote = store.addNote(noteObject, this.options.targetJudgeLines[i]);
                     historyManager.recordAddNote(newNote.id);
                 }
                 else {
                     const eventObject = element.toObject();
                     eventObject.startTime = addBeats(eventObject.startTime, beats);
                     eventObject.endTime = addBeats(eventObject.endTime, beats);
-                    const newEvent = store.addEvent(eventObject, element.type, element.eventLayerId, element.judgeLineNumber);
+                    const newEvent = store.addEvent(eventObject, element.type, element.eventLayerId, this.options.targetJudgeLines[i]);
                     historyManager.recordAddEvent(newEvent.id);
                 }
             }
@@ -133,22 +66,6 @@ export default class CloneManager extends Manager {
         if (selectionManager.selectedElements.length == 0) {
             throw new Error("请选择元素");
         }
-        // const minTime = selectionManager.selectedElements.reduce<Beats>((prev, curr) => {
-        //     if (isLessThanBeats(prev, curr.startTime)) {
-        //         return prev;
-        //     }
-        //     else {
-        //         return curr.startTime;
-        //     }
-        // }, [0, 0, 1]);
-        // const maxTime = selectionManager.selectedElements.reduce<Beats>((prev, curr) => {
-        //     if (isGreaterThanBeats(prev, curr.endTime)) {
-        //         return prev;
-        //     }
-        //     else {
-        //         return curr.endTime;
-        //     }
-        // }, [0, 0, 1]);
         let minTime: Beats = [Infinity, 0, 1];
         let maxTime: Beats = [-Infinity, 0, 1];
         for (let i = 0; i < selectionManager.selectedElements.length; i++) {
@@ -161,7 +78,7 @@ export default class CloneManager extends Manager {
             }
         }
         const length = subBeats(maxTime, minTime);
-        historyManager.group("重复");
+        historyManager.group("连续粘贴");
         const elements: SelectedElement[] = [];
         for (const element of selectionManager.selectedElements) {
             if (element instanceof Note) {
