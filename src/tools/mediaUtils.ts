@@ -1,9 +1,12 @@
 export default class MediaUtils {
-    static playSound(this: AudioContext, audioBuffer: AudioBuffer, time = 0) {
+    static playSound(this: AudioContext, audioBuffer: AudioBuffer, time = 0, volume = 1) {
         if (time >= audioBuffer.duration) return;
         const bufferSource = this.createBufferSource();
         bufferSource.buffer = audioBuffer;
-        bufferSource.connect(this.destination);
+        const gainNode = this.createGain();
+        gainNode.gain.value = volume;
+        bufferSource.connect(gainNode);
+        gainNode.connect(this.destination);
         bufferSource.start(0, time);
         bufferSource.onended = () => {
             bufferSource.disconnect();

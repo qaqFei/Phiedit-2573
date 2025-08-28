@@ -207,24 +207,17 @@ export default class EditorRenderer extends Manager {
             return relative(sec * stateManager._state.pxPerSecond);
         }
 
+        /** 视口顶部所对应的时间 */
         const s1 = stateManager.getSecondsOfRelativePositionY(Constants.notesViewBox.top);
+        /** 视口底部所对应的时间 */
         const s2 = stateManager.getSecondsOfRelativePositionY(Constants.notesViewBox.bottom);
 
         for (const note of notes) {
             const noteStartSeconds = note.cachedStartSeconds;
             const noteEndSeconds = note.cachedEndSeconds;
-            if (noteStartSeconds > s1 + Constants.selectPadding || noteEndSeconds < s2 - Constants.selectPadding) {
+            if (noteStartSeconds > s1 || noteEndSeconds < s2) {
                 continue;
             }
-            /*
-            if (seconds >= noteStartSeconds && note.hitSeconds == undefined && !note.isFake) {
-                note.hitSeconds = noteStartSeconds;
-                resourcePackage.playSound(note.type);
-            }
-            if (note.hitSeconds && seconds < note.hitSeconds) {
-                note.hitSeconds = undefined;
-            }
-            */
             ctx.globalAlpha = note == imaginaryNote ? 0.5 : 1;
             if (note.type == NoteType.Hold) {
                 const { head, body, end } = resourcePackage.getSkin(note.type, note.highlight);
@@ -416,8 +409,8 @@ export default class EditorRenderer extends Manager {
                         event.isDisabled ? Constants.eventDisabledColor : Constants.eventColor,
                         true);
 
+                    // 显示选中框
                     if (selectionManager.isSelected(event)) {
-                        // 显示选中框
                         drawRect(
                             eventX - Constants.eventWidth / 2,
                             eventEndY,
@@ -426,16 +419,37 @@ export default class EditorRenderer extends Manager {
                             Constants.selectionColor,
                             true);
                     }
-                    else if (box.touch(mouseManager.mouseX, mouseManager.mouseY)) {
-                        // 显示选中框
-                        drawRect(
-                            eventX - Constants.eventWidth / 2,
-                            eventEndY,
-                            Constants.eventWidth,
-                            eventHeight,
-                            Constants.hoverColor,
-                            true);
+
+                    // 显示鼠标悬停的效果
+                    if (mouseManager.mouseX >= eventX - Constants.eventWidth / 2 && mouseManager.mouseX <= eventX + Constants.eventWidth / 2) {
+                        /* if (mouseManager.mouseY >= eventStartY - Constants.selectPadding && mouseManager.mouseY <= eventStartY)
+                            drawRect(
+                                eventX - Constants.eventWidth / 2,
+                                eventStartY - Constants.selectPadding,
+                                Constants.eventWidth,
+                                Constants.selectPadding,
+                                Constants.hoverColor,
+                                true);
+                        else if (mouseManager.mouseY >= eventEndY && mouseManager.mouseY <= eventEndY + Constants.selectPadding)
+                            drawRect(
+                                eventX - Constants.eventWidth / 2,
+                                eventEndY,
+                                Constants.eventWidth,
+                                Constants.selectPadding,
+                                Constants.hoverColor,
+                                true);
+                        else */
+                        if (box.touch(mouseManager.mouseX, mouseManager.mouseY)) {
+                            drawRect(
+                                eventX - Constants.eventWidth / 2,
+                                eventEndY,
+                                Constants.eventWidth,
+                                eventHeight,
+                                Constants.hoverColor,
+                                true);
+                        }
                     }
+
 
                     // 如果是本组的第一个事件
                     if (j == 0 && !isCuttedStart) {

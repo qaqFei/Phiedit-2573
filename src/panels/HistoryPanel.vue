@@ -1,7 +1,7 @@
 <template>
     <div
         v-if="u || !u"
-        class="history-panel"
+        class="history-panel right-inner"
     >
         <Teleport :to="props.titleTeleport">
             历史记录
@@ -91,12 +91,6 @@ function rowClassName(options: {
 }
 </script>
 <style scoped>
-.history-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
 .current-row {
     --el-table-tr-bg-color: var(--el-color-warning-light-9);
 }

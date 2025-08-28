@@ -238,7 +238,7 @@ async function createWindow() {
             texturePaths
         };
     }
-    function createEmptyChart(chartName: string) {
+    function createAnEmptyChart(chartName: string) {
         const lines = 24;
         const chart = new Chart(lines);
         chart.BPMList.push(new BPM({
@@ -246,6 +246,17 @@ async function createWindow() {
             startTime: [0, 0, 1]
         }));
         chart.META.name = chartName;
+
+        // 真的想不到这段代码怎么写了，就写成这样了……
+        chart.judgeLineList[0].eventLayers[0].moveYEvents[0].start = -250;
+        chart.judgeLineList[0].eventLayers[0].moveYEvents[0].end = -250;
+        chart.judgeLineList[0].eventLayers[0].alphaEvents[0].start = 255;
+        chart.judgeLineList[0].eventLayers[0].alphaEvents[0].end = 255;
+        for(const judgeLine of chart.judgeLineList){
+            judgeLine.eventLayers[0].speedEvents[0].start = 10;
+            judgeLine.eventLayers[0].speedEvents[0].end = 10;
+        }
+
         return chart;
     }
     async function addIdToChartList(chartId: string) {
@@ -262,7 +273,7 @@ async function createWindow() {
             chartList.splice(index, 1);
         }
         else {
-            console.error("deleteIdFromChartList: chartId not found");
+            console.error(`未找到谱面ID：${chartId}`);
         }
         fs.writeFileSync(chartListFile, JSON.stringify(chartList));
     }
@@ -409,7 +420,7 @@ async function createWindow() {
         const path666 = path.join(chartsDir, chartId);
         fs.mkdirSync(path666);
 
-        const chart = createEmptyChart(name);
+        const chart = createAnEmptyChart(name);
 
         const musicExt = path.extname(musicPath);
         const backgroundExt = path.extname(backgroundPath);

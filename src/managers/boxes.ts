@@ -7,6 +7,10 @@ import Manager from "./abstract";
 import { BaseEventLayer, baseEventTypes, extendedEventTypes } from "@/models/eventLayer";
 
 export default class BoxesManager extends Manager {
+    /**
+     * 获取碰撞箱。使用绝对坐标。
+     * 绝对坐标的上下和相对坐标是相反的，也就是说，虽然返回的碰撞箱top会比bottom小，但转换成相对坐标后top就会比bottom大了
+     */
     calculateBoxes(): BoxWithData<SelectedElement>[] {
         const settingsManager = store.useManager("settingsManager");
         const stateManager = store.useManager("stateManager");
@@ -49,11 +53,11 @@ export default class BoxesManager extends Manager {
             const events = stateManager.currentEventLayer.getEventsByType(type);
             const eventX = Constants.eventsViewBox.width * (+column + 0.5) / types.length + Constants.eventsViewBox.left;
             for (const event of events) {
-                const eventStartY = stateManager.getRelativePositionYOfSeconds(event.cachedStartSeconds);
-                const eventEndY = stateManager.getRelativePositionYOfSeconds(event.cachedEndSeconds);
+                const eventStartY = stateManager.getAbsolutePositionYOfSeconds(event.cachedStartSeconds);
+                const eventEndY = stateManager.getAbsolutePositionYOfSeconds(event.cachedEndSeconds);
                 boxes.push(new BoxWithData(
-                    stateManager.absolute(eventEndY),
-                    stateManager.absolute(eventStartY),
+                    eventEndY,
+                    eventStartY,
                     eventX - Constants.eventWidth / 2,
                     eventX + Constants.eventWidth / 2,
                     event));

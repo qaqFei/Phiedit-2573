@@ -1,5 +1,5 @@
 <template>
-    <div class="settings-panel">
+    <div class="settings-panel right-inner">
         <Teleport :to="props.titleTeleport">
             设置
         </Teleport>
@@ -10,6 +10,55 @@
         >
             恢复默认设置
         </MyButton>
+        <MySlider
+            v-model="settingsManager.settings.musicVolume"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            :format-tooltip="(number) => Math.round(number * 100) + '%'"
+        >
+            音乐音量
+        </MySlider>
+        <MySlider
+            v-model="settingsManager.settings.hitSoundVolume"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            :format-tooltip="(number) => Math.round(number * 100) + '%'"
+        >
+            音效音量
+        </MySlider>
+        <MyInputNumber
+            v-model="settingsManager.settings.backgroundDarkness"
+            :min="0"
+            :max="100"
+        >
+            <template #prepend>
+                背景黑暗度
+            </template>
+            <template #append>
+                %
+            </template>
+        </MyInputNumber>
+        <MyInputNumber
+            v-model="settingsManager.settings.noteSize"
+            :min="0"
+        >
+            <template #prepend>
+                音符大小
+            </template>
+            <template #append>
+                像素
+            </template>
+        </MyInputNumber>
+        <MyInputNumber
+            v-model="settingsManager.settings.wheelSpeed"
+            :min="0"
+        >
+            <template #prepend>
+                滚轮速度
+            </template>
+        </MyInputNumber>
         <MyInputNumber
             v-model="settingsManager.settings.lineWidth"
             :min="0"
@@ -43,37 +92,6 @@
                 像素
             </template>
         </MyInputNumber>
-        <MyInputNumber
-            v-model="settingsManager.settings.backgroundDarkness"
-            :min="0"
-            :max="100"
-        >
-            <template #prepend>
-                背景黑暗度
-            </template>
-            <template #append>
-                %
-            </template>
-        </MyInputNumber>
-        <MyInputNumber
-            v-model="settingsManager.settings.noteSize"
-            :min="0"
-        >
-            <template #prepend>
-                note大小
-            </template>
-            <template #append>
-                像素
-            </template>
-        </MyInputNumber>
-        <MyInputNumber
-            v-model="settingsManager.settings.wheelSpeed"
-            :min="0"
-        >
-            <template #prepend>
-                滚轮速度
-            </template>
-        </MyInputNumber>
         <MySwitch v-model="settingsManager.settings.showJudgeLineNumber">
             显示判定线编号
         </MySwitch>
@@ -82,6 +100,9 @@
         </MySwitch>
         <MySwitch v-model="settingsManager.settings.markCurrentJudgeLine">
             把当前判定线标记为绿色
+        </MySwitch>
+        <MySwitch v-model="settingsManager.settings.autoCheckErrors">
+            自动纠错（<em>可能会影响性能！</em>）
         </MySwitch>
         <MyInputNumber v-model="settingsManager.settings.autoplayOffset">
             <template #prepend>
@@ -135,6 +156,7 @@ import MyButton from '@/myElements/MyButton.vue';
 // import { ElCheckbox } from 'element-plus';
 import { onBeforeUnmount, ref } from 'vue';
 import MySwitch from '@/myElements/MySwitch.vue';
+import MySlider from '@/myElements/MySlider.vue';
 const props = defineProps<{
     titleTeleport: string
 }>();
@@ -144,14 +166,7 @@ function update() {
 }
 // const resourcePackage = store.useResourcePackage();
 const settingsManager = store.useManager("settingsManager");
-onBeforeUnmount(()=>{
+onBeforeUnmount(() => {
     window.electronAPI.writeSettings(settingsManager._settings);
 })
 </script>
-<style scoped>
-.settings-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>

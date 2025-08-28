@@ -66,6 +66,7 @@
 - [preload.ts](src/preload.ts): Electron 的预加载线程，定义了 `window.electronAPI`，用于把添加谱面、打开谱面、删除谱面等操作从主线程转发给渲染线程
 - [main.ts](src/main.ts): Electron 的渲染线程
 - [router.ts](src/router.ts): 路由管理，用于定义路由
+- [constants.ts](src/constants.ts): 一些设置项，写死在代码里，用户不可更改，正在向用户可更改的 [settings.ts](src/managers/settings.ts) 中转移
 - 其他文件: 含有一些比较杂乱的文件，正在考虑优化和重构
 
 （这些文件都是在src目录下的，你不会还在根目录下找文件吧？不会吧？）

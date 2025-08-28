@@ -35,7 +35,7 @@ export default class AutoplayManager extends Manager {
                     if (hitted) {
                         // 为防止出现奇怪的打击音效，检查音频是否在播放中，只有播放中的时候才播放打击音效
                         if (audioIsPlaying) {
-                            resourcePackage.playSound(note.type);
+                            resourcePackage.playSound(note.type, settingsManager._settings.hitSoundVolume);
                         }
                     }
                 }

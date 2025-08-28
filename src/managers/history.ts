@@ -49,28 +49,52 @@ export default class HistoryManager extends Manager {
         globalEventEmitter.emit("HISTORY_UPDATE");
     }
     recordAddNote(id: string) {
+        const settingsManager = store.useManager("settingsManager");
+        const stateManager = store.useManager("stateManager");
         const record = new AddNoteRecord(id);
         this.addRecord(record);
+        if (settingsManager._settings.autoCheckErrors)
+            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
     }
     recordModifyNote<T extends typeof noteAttributes[number]>(id: string, attribute: T, newValue: INote[T], oldValue?: INote[T]) {
+        const settingsManager = store.useManager("settingsManager");
+        const stateManager = store.useManager("stateManager");
         const record = new ModifyNoteRecord(id, attribute, newValue, oldValue);
         this.addRecord(record);
+        if (settingsManager._settings.autoCheckErrors)
+            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
     }
     recordRemoveNote(noteObject: INote, judgeLineNumber: number, id: string) {
+        const settingsManager = store.useManager("settingsManager");
+        const stateManager = store.useManager("stateManager");
         const record = new RemoveNoteRecord(noteObject, judgeLineNumber, id);
         this.addRecord(record);
+        if (settingsManager._settings.autoCheckErrors)
+            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
     }
     recordAddEvent(id: string) {
+        const settingsManager = store.useManager("settingsManager");
+        const stateManager = store.useManager("stateManager");
         const record = new AddEventRecord(id);
         this.addRecord(record);
+        if (settingsManager._settings.autoCheckErrors)
+            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
     }
     recordModifyEvent<T extends typeof eventAttributes[number]>(id: string, attribute: T, newValue: IEvent<unknown>[T], oldValue?: IEvent<unknown>[T]) {
+        const settingsManager = store.useManager("settingsManager");
+        const stateManager = store.useManager("stateManager");
         const record = new ModifyEventRecord(id, attribute, newValue, oldValue);
         this.addRecord(record);
+        if (settingsManager._settings.autoCheckErrors)
+            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
     }
     recordRemoveEvent(eventObject: IEvent<unknown>, eventType: string, eventLayerId: string, judgeLineNumber: number, id: string) {
+        const settingsManager = store.useManager("settingsManager");
+        const stateManager = store.useManager("stateManager");
         const record = new RemoveEventRecord(eventObject, eventType, eventLayerId, judgeLineNumber, id);
         this.addRecord(record);
+        if (settingsManager._settings.autoCheckErrors)
+            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
     }
     /** 新增的命令是否加入到组中 */
     grouped = false;

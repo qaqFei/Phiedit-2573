@@ -65,6 +65,9 @@ return {
     y: y,
     angle: angle
 };`,
+        },
+        error: {
+            errorType: "ChartEditError",
         }
     })
     constructor() {
@@ -169,9 +172,15 @@ return {
         const beats = secondsToBeats(chart.BPMList, seconds);
         return beats;
     }
+    /**
+     * 把相对坐标转为绝对坐标
+     */
     absolute(relativeY: number) {
         return Constants.notesViewBox.bottom - relativeY + this.offsetY;
     }
+    /**
+     * 把绝对坐标转为相对坐标
+     */
     relative(absoluteY: number) {
         return Constants.notesViewBox.bottom - absoluteY + this.offsetY;
     }

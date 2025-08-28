@@ -24,6 +24,7 @@ import type NoteFiller from "./managers/noteFiller";
 import type EventFiller from "./managers/eventFiller";
 import type LineBinder from "./managers/lineBinder";
 import type AutoplayManager from "./managers/autoplay";
+import type ErrorManager from "./managers/error";
 
 /** 数据集中管理的对象 */
 class Store {
@@ -53,6 +54,7 @@ class Store {
         eventFiller: EventFiller | null,
         lineBinder: LineBinder | null,
         autoplayManager: AutoplayManager | null,
+        errorManager: ErrorManager | null,
     } = {
             chartRenderer: null,
             editorRenderer: null,
@@ -72,7 +74,8 @@ class Store {
             noteFiller: null,
             eventFiller: null,
             lineBinder: null,
-            autoplayManager: null
+            autoplayManager: null,
+            errorManager: null
         }
     constructor() {
         this.chartPackageRef = ref(null);
@@ -141,6 +144,10 @@ class Store {
             return;
         }
         this.useAudio().currentTime = seconds + this.useChart().META.offset / 1000;
+    }
+    setCursor(type: "pointer" | "default" | "ew-resize" | "ns-resize" | "move" | "crosshair"){
+        const canvas = this.useCanvas();
+        canvas.style.cursor = type;
     }
     getChartId() {
         if (!this.route) {

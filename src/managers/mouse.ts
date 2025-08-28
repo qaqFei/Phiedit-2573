@@ -137,6 +137,12 @@ export default class MouseManager extends Manager {
         switch (this.mouseMoveMode) {
 
             case MouseMoveMode.Drag: {
+                if (firstElement instanceof Note && firstElement.type != NoteType.Hold) {
+                    store.setCursor("move");
+                }
+                else {
+                    store.setCursor("ns-resize");
+                }
                 const beats = stateManager.attatchY(y);
                 if (firstElement instanceof Note) {
                     firstElement.startTime = beats;
@@ -149,6 +155,12 @@ export default class MouseManager extends Manager {
             }
 
             case MouseMoveMode.DragEnd: {
+                if (firstElement instanceof Note && firstElement.type != NoteType.Hold) {
+                    store.setCursor("move");
+                }
+                else {
+                    store.setCursor("ns-resize");
+                }
                 const beats = stateManager.attatchY(y);
                 if (firstElement instanceof Note) {
                     firstElement.endTime = beats;
@@ -160,15 +172,39 @@ export default class MouseManager extends Manager {
                 break;
             }
 
-            case MouseMoveMode.Select:
+            case MouseMoveMode.Select: {
                 if (!this.selectionBox) {
                     break;
                 }
                 this.selectionBox.right = x;
                 this.selectionBox.bottom = stateManager.absolute(y);
-
+                store.setCursor("crosshair");
                 break;
+            }
 
+            default: {
+                const clickedBox = this.getClickedBox(x, y);
+                const clickedObject = clickedBox ? clickedBox.data : null;
+                if (clickedObject instanceof Note && clickedObject.type != NoteType.Hold) {
+                    store.setCursor("default");
+                    break;
+                }
+
+                if (clickedBox) {
+                    const startY = stateManager.relative(clickedBox.top);
+                    const endY = stateManager.relative(clickedBox.bottom);
+                    if (this.mouseY >= startY - Constants.selectPadding && this.mouseY <= startY)
+                        store.setCursor("ns-resize");
+                    else if (this.mouseY >= endY && this.mouseY <= endY + Constants.selectPadding)
+                        store.setCursor("ns-resize");
+                    else
+                        store.setCursor("default");
+                }
+                else {
+                    store.setCursor("default");
+                }
+                break;
+            }
         }
         this.mouseX = x;
         this.mouseY = y;
@@ -200,7 +236,7 @@ export default class MouseManager extends Manager {
 
         const clickedObject = clickedBox ? clickedBox.data : null;
         // 如果点到某个元素了，就选择这个元素
-        if (clickedObject) {
+        if (clickedObject && clickedBox) {
             if (mutiple) {
                 // 如果是多选，且已经选择的话就取消选择，未选择就选择这个元素
                 if (selectionManager.selectedElements.includes(clickedObject)) {
@@ -217,10 +253,23 @@ export default class MouseManager extends Manager {
                     if (clickedObject instanceof Note) {
                         this.oldPositionX = clickedObject.positionX;
                     }
-                    this.mouseMoveMode = MouseMoveMode.Drag;
+
                 }
                 selectionManager.unselectAll();
                 selectionManager.select(clickedObject);
+
+                // 检测拖动头尾
+                const startY = stateManager.relative(clickedBox.top);
+                const endY = stateManager.relative(clickedBox.bottom);
+                if (this.mouseY >= startY - Constants.selectPadding && this.mouseY <= startY)
+                    this.mouseMoveMode = MouseMoveMode.Drag;
+                else if (this.mouseY >= endY && this.mouseY <= endY + Constants.selectPadding)
+                    this.mouseMoveMode = MouseMoveMode.DragEnd;
+
+                // 非Hold音符不能拖动尾部，改为拖动头部
+                if (clickedObject instanceof Note && clickedObject.type != NoteType.Hold && this.mouseMoveMode == MouseMoveMode.DragEnd) {
+                    this.mouseMoveMode = MouseMoveMode.Drag;
+                }
             }
         }
         // 如果没有点到任何元素，就认为用户是想拖拽选择框选择，设置状态为拖拽选择框选择，并初始化选择框位置
@@ -236,9 +285,10 @@ export default class MouseManager extends Manager {
         // 禁止在预览谱面时点击canvas
         if (stateManager.state.isPreviewing) return;
 
-        const clickedBox = this.getClickedBox(x, y);
+        // const clickedBox = this.getClickedBox(x, y);
 
-        const clickedObject = clickedBox ? clickedBox.data : null;
+        // const clickedObject = clickedBox ? clickedBox.data : null;
+        /*
         if (clickedObject && (selectionManager.isSelected(clickedObject) || true)) {
             selectionManager.unselectAll();
             selectionManager.select(clickedObject);
@@ -248,7 +298,7 @@ export default class MouseManager extends Manager {
             }
             this.mouseMoveMode = MouseMoveMode.DragEnd;
         }
-        else if (Constants.notesViewBox.touch(x, y)) {
+        else */if (Constants.notesViewBox.touch(x, y)) {
             const time = stateManager.attatchY(y);
             const positionX = stateManager.attatchX(x);
             const addedNote = store.addNote({
@@ -289,11 +339,21 @@ export default class MouseManager extends Manager {
             const type = types[track];
             const timeSeconds = beatsToSeconds(chart.BPMList, time);
             const lastEvent = findLastEvent<NumberEvent | ColorEvent | TextEvent>(stateManager.currentEventLayer.getEventsByType(type), timeSeconds);
+            const eventValue = lastEvent?.end ?? (() => {
+                if (type == "scaleX" || type == "scaleY")
+                    return 1;
+                else if (type == "color")
+                    return [255, 255, 255];
+                else if (type == "text")
+                    return "";
+                else
+                    return 0;
+            })()
             const addedEvent = store.addEvent({
                 startTime: [...time],
                 endTime: [...time],
-                start: lastEvent?.end,
-                end: lastEvent?.end,
+                start: eventValue,
+                end: eventValue,
                 bezier: 0,
                 bezierPoints: [0, 0, 1, 1],
                 easingLeft: 0,

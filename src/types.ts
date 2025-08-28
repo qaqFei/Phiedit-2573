@@ -1,7 +1,7 @@
 import type { Note } from "@/models/note";
 import type { ColorEvent, NumberEvent, TextEvent } from "./models/event";
 export enum RightPanelState {
-    Default, Clipboard, Settings, BPMList, Meta, JudgeLine, History, Calculator, NoteFill, EventFill, FastBind
+    Default, Clipboard, Settings, BPMList, Meta, JudgeLine, History, Calculator, NoteFill, EventFill, FastBind, Error
 }
 export enum MouseMoveMode {
     None, Drag, DragEnd, Select

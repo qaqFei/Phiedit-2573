@@ -4,6 +4,7 @@ import { isArrayOfNumbers } from "../tools/typeCheck";
 import { RGBcolor } from "../tools/color";
 import { isObject, isNumber, isString } from "lodash";
 import { checkAndSort } from "@/tools/algorithm";
+import ChartError from "./error";
 export type BezierPoints = [number, number, number, number]
 export interface IEvent<T> {
     bezier: 0 | 1;
@@ -74,6 +75,7 @@ export abstract class BaseEvent<T = unknown> implements IEvent<T> {
         this._endTime = validateBeats(beats);
         this.calculateSeconds();
     }
+    readonly errors: ChartError[] = [];
     validateTime() {
         if (getBeatsValue(this.startTime) > getBeatsValue(this.endTime)) {
             const a = this.startTime, b = this.endTime;
@@ -119,25 +121,181 @@ export abstract class BaseEvent<T = unknown> implements IEvent<T> {
         this.eventLayerId = options.eventLayerId;
         this.type = options.type;
         this.id = options.id ?? `${options.judgeLineNumber}-${options.eventLayerId}-${options.type}-${options.eventNumber}`;
+
         if (isObject(event)) {
-            if ("bezier" in event)
-                this.bezier = event.bezier ? 1 : 0;
-            if ("bezierPoints" in event && isArrayOfNumbers(event.bezierPoints, 4))
-                this.bezierPoints = event.bezierPoints;
-            if ("easingLeft" in event && "easingRight" in event && isNumber(event.easingLeft) && isNumber(event.easingRight)
-                && event.easingLeft >= 0 && event.easingRight <= 1 && event.easingLeft < event.easingRight) {
-                this.easingLeft = event.easingLeft;
-                this.easingRight = event.easingRight;
+            // bezier
+            if ("bezier" in event) {
+                if (isNumber(event.bezier) && (event.bezier === 0 || event.bezier === 1)) {
+                    this.bezier = event.bezier;
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：事件的 bezier 属性必须是 0 或 1，但读取到了 ${event.bezier}。将会被替换为数字 0。`,
+                        "ChartReadError",
+                        this as NumberEvent | ColorEvent | TextEvent
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：事件缺少 bezier 属性。将会被设为数字 0。`,
+                    "ChartReadError",
+                    this as NumberEvent | ColorEvent | TextEvent
+                ));
             }
-            if ("easingType" in event && event.easingType as number >= 1 && event.easingType as number <= 29 && Number.isInteger(event.easingType))
-                this.easingType = event.easingType as EasingType;
-            if ("startTime" in event && isArrayOfNumbers(event.startTime, 3))
-                this._startTime = [...event.startTime];
-            if ("endTime" in event && isArrayOfNumbers(event.endTime, 3))
-                this._endTime = [...event.endTime];
-            else
+
+            // bezierPoints
+            if ("bezierPoints" in event) {
+                if (isArrayOfNumbers(event.bezierPoints, 4)) {
+                    this.bezierPoints = [...event.bezierPoints];
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：事件的 bezierPoints 属性必须是包含4个数字的数组，但读取到了 ${JSON.stringify(event.bezierPoints)}。将会被替换为默认值 [0, 0, 0, 0]。`,
+                        "ChartReadError",
+                        this as NumberEvent | ColorEvent | TextEvent
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：事件缺少 bezierPoints 属性。将会被设为默认值 [0, 0, 0, 0]。`,
+                    "ChartReadError",
+                    this as NumberEvent | ColorEvent | TextEvent
+                ));
+            }
+
+            // easingLeft and easingRight
+            if ("easingLeft" in event && "easingRight" in event) {
+                if (isNumber(event.easingLeft) && isNumber(event.easingRight)) {
+                    if (event.easingLeft >= 0 && event.easingRight <= 1 && event.easingLeft < event.easingRight) {
+                        this.easingLeft = event.easingLeft;
+                        this.easingRight = event.easingRight;
+                    } else {
+                        this.errors.push(new ChartError(
+                            `${this.id}：事件的 easingLeft 和 easingRight 属性必须满足 0 <= easingLeft < easingRight <= 1，但读取到了 easingLeft=${event.easingLeft}, easingRight=${event.easingRight}。将会被替换为默认值 0 和 1。`,
+                            "ChartReadError",
+                            this as NumberEvent | ColorEvent | TextEvent
+                        ));
+                    }
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：事件的 easingLeft 和 easingRight 属性必须是数字，但读取到了 easingLeft=${event.easingLeft}, easingRight=${event.easingRight}。将会被替换为默认值 0 和 1。`,
+                        "ChartReadError",
+                        this as NumberEvent | ColorEvent | TextEvent
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：事件缺少 easingLeft 或 easingRight 属性。将会被设为默认值 0 和 1。`,
+                    "ChartReadError",
+                    this as NumberEvent | ColorEvent | TextEvent
+                ));
+            }
+
+            // easingType
+            if ("easingType" in event) {
+                if (isNumber(event.easingType) &&
+                    event.easingType >= 1 &&
+                    event.easingType <= 29 &&
+                    Number.isInteger(event.easingType)) {
+                    this.easingType = event.easingType as EasingType;
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：事件的 easingType 属性必须是 1 到 29 之间的整数，但读取到了 ${event.easingType}。将会被替换为默认值 1（线性缓动）。`,
+                        "ChartReadError",
+                        this as NumberEvent | ColorEvent | TextEvent
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：事件缺少 easingType 属性。将会被设为默认值 1（线性缓动）。`,
+                    "ChartReadError",
+                    this as NumberEvent | ColorEvent | TextEvent
+                ));
+            }
+
+            // startTime
+            if ("startTime" in event) {
+                if (isArrayOfNumbers(event.startTime, 3)) {
+                    this._startTime = [...event.startTime];
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：事件的 startTime 属性必须是包含3个数字的数组，但读取到了 ${JSON.stringify(event.startTime)}。将会被替换为默认值 [0, 0, 1]。`,
+                        "ChartReadError",
+                        this as NumberEvent | ColorEvent | TextEvent
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：事件缺少 startTime 属性。将会被设为默认值 [0, 0, 1]。`,
+                    "ChartReadError",
+                    this as NumberEvent | ColorEvent | TextEvent
+                ));
+            }
+
+            // endTime
+            if ("endTime" in event) {
+                if (isArrayOfNumbers(event.endTime, 3)) {
+                    this._endTime = [...event.endTime];
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：事件的 endTime 属性必须是包含3个数字的数组，但读取到了 ${JSON.stringify(event.endTime)}。将会被替换为 startTime 的值。`,
+                        "ChartReadError",
+                        this as NumberEvent | ColorEvent | TextEvent
+                    ));
+                    this._endTime = [...this._startTime];
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：事件缺少 endTime 属性。将会被设为 startTime 的值。`,
+                    "ChartReadError",
+                    this as NumberEvent | ColorEvent | TextEvent
+                ));
                 this._endTime = [...this._startTime];
+            }
+
+            // linkgroup
+            if ("linkgroup" in event) {
+                if (isNumber(event.linkgroup) && Number.isInteger(event.linkgroup)) {
+                    this.linkgroup = event.linkgroup;
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：事件的 linkgroup 属性必须是整数，但读取到了 ${event.linkgroup}。将会被替换为数字 0。`,
+                        "ChartReadError",
+                        this as NumberEvent | ColorEvent | TextEvent
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：事件缺少 linkgroup 属性。将会被设为数字 0。`,
+                    "ChartReadError",
+                    this as NumberEvent | ColorEvent | TextEvent
+                ));
+            }
+
+            // isDisabled
+            if ("isDisabled" in event) {
+                if (typeof event.isDisabled === 'boolean') {
+                    this.isDisabled = event.isDisabled;
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：事件的 isDisabled 属性必须是布尔值，但读取到了 ${event.isDisabled}。将会被替换为 false。`,
+                        "ChartReadError",
+                        this as NumberEvent | ColorEvent | TextEvent
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：事件缺少 isDisabled 属性。将会被设为 false。`,
+                    "ChartReadError",
+                    this as NumberEvent | ColorEvent | TextEvent
+                ));
+            }
+        } else {
+            this.errors.push(new ChartError(
+                `${this.id}：事件必须是一个对象，但读取到了 ${event}。将会使用默认值。`,
+                "ChartReadError",
+                this as NumberEvent | ColorEvent | TextEvent
+            ));
         }
+
         this.BPMList = options.BPMList;
         this.cachedStartSeconds = beatsToSeconds(options.BPMList, this._startTime);
         this.cachedEndSeconds = beatsToSeconds(options.BPMList, this._endTime);
@@ -149,10 +307,49 @@ export class NumberEvent extends BaseEvent<number> {
     constructor(event: unknown, options: EventOptions) {
         super(event, options);
         if (isObject(event)) {
-            if ("start" in event && isNumber(event.start))
-                this.start = event.start;
-            if ("end" in event && isNumber(event.end))
-                this.end = event.end;
+            // start
+            if ("start" in event) {
+                if (isNumber(event.start)) {
+                    this.start = event.start;
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：${this.type}事件的 start 属性必须是数字，但读取到了 ${event.start}。将会被替换为数字 0。`,
+                        "ChartReadError",
+                        this
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：${this.type}事件缺少 start 属性。将会被设为数字 0。`,
+                    "ChartReadError",
+                    this
+                ));
+            }
+
+            // end
+            if ("end" in event) {
+                if (isNumber(event.end)) {
+                    this.end = event.end;
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：${this.type}事件的 end 属性必须是数字，但读取到了 ${event.end}。将会被替换为数字 0。`,
+                        "ChartReadError",
+                        this
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：${this.type}事件缺少 end 属性。将会被设为数字 0。`,
+                    "ChartReadError",
+                    this
+                ));
+            }
+        } else {
+            this.errors.push(new ChartError(
+                `${this.id}：${this.type}事件必须是一个对象，但读取到了 ${event}。将会使用默认值。`,
+                "ChartReadError",
+                this
+            ));
         }
     }
 }
@@ -168,10 +365,49 @@ export class ColorEvent extends BaseEvent<RGBcolor> {
     constructor(event: unknown, options: EventOptions) {
         super(event, options);
         if (isObject(event)) {
-            if ("start" in event && isArrayOfNumbers(event.start, 3))
-                this.start = [...event.start];
-            if ("end" in event && isArrayOfNumbers(event.end, 3))
-                this.end = [...event.end];
+            // start
+            if ("start" in event) {
+                if (isArrayOfNumbers(event.start, 3)) {
+                    this.start = [...event.start];
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：${this.type}事件的 start 属性必须是包含3个数字的数组，但读取到了 ${JSON.stringify(event.start)}。将会被替换为默认值 [255, 255, 255]。`,
+                        "ChartReadError",
+                        this
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：${this.type}事件缺少 start 属性。将会被设为默认值 [255, 255, 255]。`,
+                    "ChartReadError",
+                    this
+                ));
+            }
+
+            // end
+            if ("end" in event) {
+                if (isArrayOfNumbers(event.end, 3)) {
+                    this.end = [...event.end];
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：${this.type}事件的 end 属性必须是包含3个数字的数组，但读取到了 ${JSON.stringify(event.end)}。将会被替换为默认值 [255, 255, 255]。`,
+                        "ChartReadError",
+                        this
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：${this.type}事件缺少 end 属性。将会被设为默认值 [255, 255, 255]。`,
+                    "ChartReadError",
+                    this
+                ));
+            }
+        } else {
+            this.errors.push(new ChartError(
+                `${this.id}：${this.type}事件必须是一个对象，但读取到了 ${event}。将会使用默认值。`,
+                "ChartReadError",
+                this
+            ));
         }
     }
 }
@@ -180,11 +416,51 @@ export class TextEvent extends BaseEvent<string> {
     end: string = "";
     constructor(event: unknown, options: EventOptions) {
         super(event, options);
+
         if (isObject(event)) {
-            if ("start" in event && isString(event.start))
-                this.start = event.start;
-            if ("end" in event && isString(event.end))
-                this.end = event.end;
+            // start
+            if ("start" in event) {
+                if (isString(event.start)) {
+                    this.start = event.start;
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：${this.type}事件的 start 属性必须是字符串，但读取到了 ${event.start}。将会被替换为空字符串。`,
+                        "ChartReadError",
+                        this
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：${this.type}事件缺少 start 属性。将会被设为空字符串。`,
+                    "ChartReadError",
+                    this
+                ));
+            }
+
+            // end
+            if ("end" in event) {
+                if (isString(event.end)) {
+                    this.end = event.end;
+                } else {
+                    this.errors.push(new ChartError(
+                        `${this.id}：${this.type}事件的 end 属性必须是字符串，但读取到了 ${event.end}。将会被替换为空字符串。`,
+                        "ChartReadError",
+                        this
+                    ));
+                }
+            } else {
+                this.errors.push(new ChartError(
+                    `${this.id}：${this.type}事件缺少 end 属性。将会被设为空字符串。`,
+                    "ChartReadError",
+                    this
+                ));
+            }
+        } else {
+            this.errors.push(new ChartError(
+                `${this.id}：${this.type}事件必须是一个对象，但读取到了 ${event}。将会使用默认值。`,
+                "ChartReadError",
+                this
+            ));
         }
     }
 }
@@ -295,7 +571,7 @@ export function findLastEvent<T extends BaseEvent>(events: T[], seconds: number)
     //     typeof event.cachedStartSeconds === 'number' && 
     //     event.cachedStartSeconds <= seconds
     // );
-    const validEvents = events;
+    const validEvents = events.filter(event => !event.isDisabled);
 
     if (validEvents.length === 0) {
         return null;

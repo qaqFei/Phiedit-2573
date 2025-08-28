@@ -161,8 +161,8 @@
                     <MyQuestionMark>
                         一拍内有多少条横线。在写一些奇怪的节奏时可能会用到。<br>
                         假如四分音符为一拍，则每个格子代表（4×横线数）分音。<br>
-                        若横线数为4，则每个格子为16分音。<br>
-                        若横线数为6，则每个格子为24分音。<br>
+                        若横线数为4，则每个格子为16分音；<br>
+                        若横线数为6，则每个格子为24分音；<br>
                         若横线数为8，则每个格子为32分音。<br>
                     </MyQuestionMark>
                 </template>
@@ -249,8 +249,9 @@
             <div
                 v-if="selectionManager.selectedElements.length == 0"
                 class="left-inner"
+                style="justify-content: space-between;"
             >
-                <div>
+                <div style="display: flex;flex-direction: column;gap: 10px;">
                     <h1>Phiedit 2573</h1>
                     <MyButton
                         type="primary"
@@ -278,22 +279,13 @@
                             <em>注意，我说的是Re:PhiEdit，不是本软件！请在bilibili上搜索Re:PhiEdit以获取该软件！</em>
                         </template>
                     </ElTooltip>
-                    <p>
-                        左键：选择音符或事件<br>
-                        右键：添加音符或事件<br>
-                        滚轮：前后滚动时间<br>
-                        左键：拖动音符或事件的头部<br>
-                        右键：拖动音符或事件的尾部<br>
-                        Ctrl+滚轮：缩放界面<br>
-                        左方括号：切换到上一条判定线<br>
-                        右方括号：切换到下一条判定线<br>
-                        A：切换到上一条判定线<br>
-                        D：切换到下一条判定线<br>
+                    <!-- <p style="overflow-y: auto;">
+                        A和[：切换到上一条判定线<br>
+                        D和]：切换到下一条判定线<br>
                         T、U、I：预览谱面<br>
-                        其他快捷键界面里有提示
-                    </p>
+                    </p> -->
                 </div>
-                <div>
+                <div style="display: flex;flex-direction: column;gap: 10px;">
                     <MyButton
                         type="warning"
                         class="exit-button"
@@ -416,6 +408,12 @@
                         >
                             快速绑线
                         </MyButton>
+                        <MyButton
+                            type="primary"
+                            @click="stateManager.state.right = RightPanelState.Error"
+                        >
+                            谱面纠错
+                        </MyButton>
                     </MyGridContainer>
                     <h3>
                         快速切换判定线
@@ -486,6 +484,10 @@
                         v-else-if="stateManager.state.right == RightPanelState.FastBind"
                         title-teleport=".title-right"
                     />
+                    <ErrorPanel
+                        v-else-if="stateManager.state.right == RightPanelState.Error"
+                        title-teleport=".title-right"
+                    />
                 </template>
             </ElScrollbar>
         </ElAside>
@@ -532,6 +534,7 @@ import { mean, min, round } from "lodash";
 
 import MediaUtils from "@/tools/mediaUtils";
 import KeyboardUtils from "@/tools/keyboardUtils";
+import { confirm } from "@/tools/catchError";
 
 import { NumberEvent, ColorEvent, TextEvent } from "@/models/event";
 import { Note, NoteType } from "@/models/note";
@@ -543,6 +546,8 @@ import MySelect from "@/myElements/MySelect.vue";
 import MyInputNumber from "@/myElements/MyInputNumber.vue";
 import MyBackHeader from "@/myElements/MyBackHeader.vue";
 import MyGridContainer from "@/myElements/MyGridContainer.vue";
+import MyImage from "@/myElements/MyImage.vue";
+import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
 
 import ChartRenderer from "@/managers/render/chartRenderer";
 import SaveManager from "@/managers/save";
@@ -558,6 +563,12 @@ import SelectionManager from "@/managers/selection";
 import SettingsManager from "@/managers/settings";
 import ParagraphRepeater from "@/managers/paragraphRepeater";
 import EventAbillitiesManager from "@/managers/eventAbillities";
+import ErrorManager from "@/managers/error";
+import BoxesManager from "@/managers/boxes";
+import NoteFiller from "@/managers/noteFiller";
+import EventFiller from "@/managers/eventFiller";
+import LineBinder from "@/managers/lineBinder";
+import AutoplayManager from "@/managers/autoplay";
 
 import BPMListPanel from "@/panels/BPMListPanel.vue";
 import ChartMetaPanel from "@/panels/ChartMetaPanel.vue";
@@ -568,26 +579,19 @@ import MutipleEditPanel from "@/panels/MutipleEditPanel.vue";
 import SettingsPanel from "@/panels/SettingsPanel.vue";
 import HistoryPanel from "@/panels/HistoryPanel.vue";
 import ClipboardPanel from "@/panels/ClipboardPanel.vue";
+import CalculatorPanel from "@/panels/CalculatorPanel.vue";
+import NoteFillPanel from "@/panels/NoteFillPanel.vue";
+import EventFillPanel from "@/panels/EventFillPanel.vue";
+import FastBindPanel from "@/panels/FastBindPanel.vue";
+import ColorEventEditPanel from "@/panels/ColorEventEditPanel.vue";
+import TextEventEditPanel from "@/panels/TextEventEditPanel.vue";
+import ErrorPanel from "@/panels/ErrorPanel.vue";
 
 
 import globalEventEmitter from "@/eventEmitter";
 import { RightPanelState } from "@/types";
 import store, { audioRef, canvasRef, resourcePackageRef } from "@/store";
-import BoxesManager from "@/managers/boxes";
-import { confirm } from "@/tools/catchError";
-import CalculatorPanel from "@/panels/CalculatorPanel.vue";
-import NoteFiller from "@/managers/noteFiller";
-import NoteFillPanel from "@/panels/NoteFillPanel.vue";
 import Constants from "@/constants";
-import EventFillPanel from "@/panels/EventFillPanel.vue";
-import EventFiller from "@/managers/eventFiller";
-import LineBinder from "@/managers/lineBinder";
-import FastBindPanel from "@/panels/FastBindPanel.vue";
-import MyImage from "@/myElements/MyImage.vue";
-import AutoplayManager from "@/managers/autoplay";
-import ColorEventEditPanel from "@/panels/ColorEventEditPanel.vue";
-import TextEventEditPanel from "@/panels/TextEventEditPanel.vue";
-import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
 
 const loadStart = inject("loadStart", () => {
     throw new Error("loadStart is not defined");
@@ -654,6 +658,7 @@ store.setManager("noteFiller", new NoteFiller());
 store.setManager("eventFiller", new EventFiller());
 store.setManager("lineBinder", new LineBinder());
 store.setManager("autoplayManager", new AutoplayManager());
+store.setManager("errorManager", new ErrorManager());
 
 onBeforeUnmount(() => {
     // 释放资源
@@ -666,6 +671,7 @@ onBeforeUnmount(() => {
 loadEnd();
 
 const stateManager = store.useManager("stateManager");
+const settingsManager = store.useManager("settingsManager");
 const selectionManager = store.useManager("selectionManager");
 const autoplayManager = store.useManager("autoplayManager");
 
@@ -1024,6 +1030,7 @@ onMounted(() => {
                 if (score.value !== autoplayManager.score) {
                     score.value = autoplayManager.score;
                 }
+                audio.volume = settingsManager._settings.musicVolume;
             }
             requestAnimationFrame(renderLoop);
         }
@@ -1106,6 +1113,7 @@ onMounted(() => {
 .audio-player {
     grid-area: audio-player;
     display: flex;
+    align-items: center;
     gap: 20px;
 }
 
@@ -1192,11 +1200,9 @@ onMounted(() => {
 }
 
 .left-inner,
-.right-inner,
-.left-inner div {
+.right-inner {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     align-items: stretch;
     gap: 10px;
     width: 100%;

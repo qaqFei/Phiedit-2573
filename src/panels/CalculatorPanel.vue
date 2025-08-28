@@ -1,5 +1,5 @@
 <template>
-    <div class="calculator-panel">
+    <div class="calculator-panel right-inner">
         <Teleport :to="props.titleTeleport">
             计算器
         </Teleport>

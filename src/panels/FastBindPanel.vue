@@ -1,5 +1,5 @@
 <template>
-    <div class="fast-bind-panel">
+    <div class="fast-bind-panel right-inner">
         <Teleport :to="props.titleTeleport">
             快速绑线
         </Teleport>
@@ -110,10 +110,3 @@ function bindLine() {
     globalEventEmitter.emit("BIND_LINE", selectedLineNumbers, eventLength.value, precision.value);
 }
 </script>
-<style scoped>
-.fast-bind-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>

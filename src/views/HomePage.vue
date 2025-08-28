@@ -113,6 +113,9 @@ loadEnd();
 
 async function loadMusic() {
     const filePaths = await window.electronAPI.showOpenMusicDialog();
+    if (!filePaths) {
+        throw new Error('操作已取消');
+    }
     if (filePaths.length === 0) {
         throw new Error("未选择音乐文件");
     }
@@ -121,6 +124,9 @@ async function loadMusic() {
 
 async function loadBackground() {
     const filePaths = await window.electronAPI.showOpenBackgroundDialog();
+    if (!filePaths) {
+        throw new Error('操作已取消');
+    }
     if (filePaths.length === 0) {
         throw new Error("未选择背景文件");
     }
@@ -129,12 +135,15 @@ async function loadBackground() {
 
 
 async function loadChart() {
-    const fileUrls = await window.electronAPI.showOpenChartDialog();
-    if (fileUrls.length === 0) {
+    const filePaths = await window.electronAPI.showOpenChartDialog();
+    if (!filePaths) {
+        throw new Error('操作已取消');
+    }
+    if (filePaths.length === 0) {
         throw new Error("未选择谱面文件");
     }
-    const fileUrl = fileUrls[0];
-    const chartId = await window.electronAPI.loadChart(fileUrl);
+    const filePath = filePaths[0];
+    const chartId = await window.electronAPI.loadChart(filePath);
     router.push(`/editor?chartId=${chartId}`);
 }
 

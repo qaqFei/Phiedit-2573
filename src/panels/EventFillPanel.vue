@@ -1,5 +1,5 @@
 <template>
-    <div class="event-fill-panel">
+    <div class="event-fill-panel right-inner">
         <Teleport :to="props.titleTeleport">
             生成曲线轨迹
         </Teleport>
@@ -85,12 +85,6 @@ function copyText() {
 <style scoped>
 .code-input textarea {
     min-height: 300px;
-}
-
-.event-fill-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
 }
 
 h3{

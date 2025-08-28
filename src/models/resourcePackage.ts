@@ -97,17 +97,17 @@ export class ResourcePackage implements IResourcePackage {
                     end: this.holdEnd
                 }
     }
-    playSound(noteType: NoteType) {
+    playSound(noteType: NoteType, volume = 1) {
         switch (noteType) {
             case NoteType.Tap:
             case NoteType.Hold:
-                MediaUtils.playSound.call(audioContext, this.tapSound);
+                MediaUtils.playSound.call(audioContext, this.tapSound, undefined, volume);
                 return;
             case NoteType.Drag:
-                MediaUtils.playSound.call(audioContext, this.dragSound);
+                MediaUtils.playSound.call(audioContext, this.dragSound, undefined, volume);
                 return;
             case NoteType.Flick:
-                MediaUtils.playSound.call(audioContext, this.flickSound);
+                MediaUtils.playSound.call(audioContext, this.flickSound, undefined, volume);
                 return;
         }
     }

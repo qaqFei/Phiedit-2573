@@ -5,6 +5,7 @@ import { IJudgeLine, JudgeLine } from "./judgeLine"
 import { Note } from "./note"
 import { BaseEvent } from "./event"
 import { markRaw, reactive } from "vue"
+import ChartError from "./error"
 
 export interface IChart {
     /** BPM列表，控制曲谱的BPM */
@@ -21,6 +22,7 @@ export class Chart implements IChart {
     readonly META: ChartMeta
     readonly judgeLineGroup: string[]
     readonly judgeLineList: JudgeLine[]
+    readonly errors: ChartError[] = []
     /** 把谱面转为JSON对象 */
     toObject(): IChart {
         return {
@@ -86,6 +88,9 @@ export class Chart implements IChart {
         this.highlightNotes();
         this.calculateSeconds();
     }
+    /**
+     * 传入谱面对象，加载谱面。如果传入的是一个数字，则创建一个有对应数量判定线的谱面。
+     */
     constructor(chart: unknown) {
         this.BPMList = reactive([]);
         this.judgeLineGroup = [];
@@ -95,11 +100,14 @@ export class Chart implements IChart {
 
             if ("BPMList" in chart && isArray(chart.BPMList)) {
                 for (const bpm of chart.BPMList) {
-                    this.BPMList.push(new BPM(bpm));
+                    const newBPM = new BPM(bpm);
+                    this.BPMList.push(newBPM);
+                    this.errors.push(...newBPM.errors);
                 }
             }
-
-            this.META = reactive(new ChartMeta("META" in chart ? chart.META : null));
+            const newChartMeta = new ChartMeta("META" in chart ? chart.META : null);
+            this.META = reactive(newChartMeta);
+            this.errors.push(...newChartMeta.errors);
 
             if ("judgeLineGroup" in chart && isArray(chart.judgeLineGroup)) {
                 for (const group of chart.judgeLineGroup) {
@@ -107,16 +115,24 @@ export class Chart implements IChart {
                     if (isString(group)) {
                         formatedGroup = group;
                     }
+                    else {
+                        this.errors.push(new ChartError(
+                            `chart.judgeLineGroup 属性必须是字符串，但读取到了 ${group}。将会替换为字符串 "default"。`,
+                            "ChartReadError"
+                        ))
+                    }
                     this.judgeLineGroup.push(formatedGroup);
                 }
             }
 
             if ("judgeLineList" in chart && isArray(chart.judgeLineList)) {
                 for (const [i, judgeLine] of chart.judgeLineList.entries()) {
-                    this.judgeLineList.push(new JudgeLine(judgeLine, {
+                    const newJudgeLine = new JudgeLine(judgeLine, {
                         BPMList: this.BPMList,
                         judgeLineNumber: i
-                    }));
+                    });
+                    this.judgeLineList.push(newJudgeLine);
+                    this.errors.push(...newJudgeLine.errors);
                 }
             }
 
@@ -127,6 +143,12 @@ export class Chart implements IChart {
                 for (let i = 0; i < chart; i++) {
                     this.addNewJudgeLine();
                 }
+            }
+            else {
+                this.errors.push(new ChartError(
+                    `谱面文件必须是一个对象，但读取到了${chart}。将会被替换为空谱面。`,
+                    "ChartReadError"
+                ))
             }
         }
         markRaw(this);

@@ -43,8 +43,10 @@ const inputData = reactive({
     },
     set beatsString(value: string) {
         model.value = validateBeats(parseBeats(value));
+        isInternalUpdate = true;
     }
 });
+let isInternalUpdate = false;
 const emit = defineEmits<{
     input: [string]
 }>();
@@ -53,6 +55,14 @@ const model = defineModel<Beats | undefined>({
     required: true
 });
 watch(model, () => {
+    if (!isInternalUpdate)
+        updateShowedValue();
+});
+function updateShowedValue() {
     inputBeats.value?.updateShowedValue();
-}, { immediate: true });
+    isInternalUpdate = false;
+}
+defineExpose({
+    updateShowedValue
+});
 </script>

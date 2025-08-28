@@ -69,7 +69,7 @@ let isInternalUpdate = false;
 // }
 watch(model, () => {
     // 只有外部修改而不是内部修改时才更新
-    if (!isInternalUpdate) 
+    if (!isInternalUpdate)
         updateShowedValue();
 });
 updateShowedValue();
@@ -84,10 +84,15 @@ function inputHandler() {
     isInternalUpdate = true;
     emit("input", model.value);
 }
+function setValueWithoutUpdate(value: string) {
+    model.value = value;
+    isInternalUpdate = true;
+}
 function blurHandler() {
     updateShowedValue();
 }
 defineExpose({
-    updateShowedValue
+    updateShowedValue,
+    setValueWithoutUpdate
 });
 </script>

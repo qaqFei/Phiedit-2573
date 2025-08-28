@@ -1,6 +1,7 @@
 import { isNumber, isObject } from "lodash";
 import MathUtils from "../tools/mathUtils";
 import { isArrayOfNumbers } from "@/tools/typeCheck";
+import ChartError from "./error";
 export interface IBPM {
     bpm: number
     startTime: Beats
@@ -8,6 +9,7 @@ export interface IBPM {
 export class BPM implements IBPM {
     bpm: number = 120
     _startTime: Beats = [0, 0, 1]
+    readonly errors: ChartError[] = [];
     get startTime() {
         return this._startTime;
     }
@@ -31,11 +33,36 @@ export class BPM implements IBPM {
     }
     constructor(bpm: unknown) {
         if (isObject(bpm)) {
-            if ("bpm" in bpm && isNumber(bpm.bpm)) {
-                this.bpm = bpm.bpm;
+            if ("bpm" in bpm) {
+                if (isNumber(bpm.bpm))
+                    this.bpm = bpm.bpm;
+                else
+                    this.errors.push(new ChartError(
+                        `BPM 对象的 bpm 属性必须是数字，但读取到了 ${bpm.bpm}。将会被替换为数字 120。`,
+                        "ChartReadError"
+                    ))
             }
-            if ("startTime" in bpm && isArrayOfNumbers(bpm.startTime, 3)) {
-                this._startTime = bpm.startTime;
+            else {
+                this.errors.push(new ChartError(
+                    `BPM 缺少 bpm 属性。将会被替换为数字 120。`,
+                    "ChartReadError"
+                ))
+            }
+            if ("startTime" in bpm) {
+                if (isArrayOfNumbers(bpm.startTime, 3))
+                    this._startTime = bpm.startTime;
+                else
+                    this.errors.push(new ChartError(
+                        `BPM 对象的 startTime 属性必须是一个长度为 3 的数字数组，但读取到了 ${bpm.startTime}。将会被替换为 [0, 0, 1]。`,
+                        "ChartReadError"
+                    ))
+            }
+            else {
+                this.errors.push(new ChartError(
+                    `BPM 缺少 startTime 属性。将会被替换为 [0, 0, 1]。`,
+                    "ChartReadError"
+                ))
+                this._startTime = [0, 0, 1];
             }
         }
     }

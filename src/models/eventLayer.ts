@@ -2,6 +2,7 @@ import { isObject, isArray } from "lodash"
 import { NumberEvent, ColorEvent, TextEvent, IEvent } from "./event"
 import { RGBcolor } from "../tools/color"
 import { BPM } from "./beats"
+import ChartError from "./error"
 interface EventLayerOptions {
     BPMList: BPM[]
     judgeLineNumber: number
@@ -15,6 +16,7 @@ export interface IBaseEventLayer {
     speedEvents?: IEvent<number>[]
 }
 abstract class AbstractEventLayer {
+    readonly errors: ChartError[] = [];
     abstract getEventsByType(type: string): IEvent<unknown>[];
     abstract addEvent(event: unknown, type: string, id?: string): IEvent<unknown>;
 }
@@ -78,26 +80,31 @@ export class BaseEventLayer extends AbstractEventLayer implements IBaseEventLaye
             case "moveX": {
                 const newEvent = new NumberEvent(event, { ...baseConfig, type: 'moveX', id, eventNumber: this.eventNumbers.moveX++ });
                 this.moveXEvents.push(newEvent);
+                this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "moveY": {
                 const newEvent = new NumberEvent(event, { ...baseConfig, type: 'moveY', id, eventNumber: this.eventNumbers.moveY++ });
                 this.moveYEvents.push(newEvent);
+                this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "rotate": {
                 const newEvent = new NumberEvent(event, { ...baseConfig, type: 'rotate', id, eventNumber: this.eventNumbers.rotate++ });
                 this.rotateEvents.push(newEvent);
+                this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "alpha": {
                 const newEvent = new NumberEvent(event, { ...baseConfig, type: 'alpha', id, eventNumber: this.eventNumbers.alpha++ });
                 this.alphaEvents.push(newEvent);
+                this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "speed": {
                 const newEvent = new NumberEvent(event, { ...baseConfig, type: 'speed', id, eventNumber: this.eventNumbers.speed++ });
                 this.speedEvents.push(newEvent);
+                this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             default:
@@ -189,21 +196,25 @@ export class ExtendedEventLayer extends AbstractEventLayer implements IExtendedE
             case "scaleX": {
                 const newEvent = new NumberEvent(event, { ...baseConfig, type: 'scaleX', id, eventNumber: this.eventNumbers.scaleX++ });
                 this.scaleXEvents.push(newEvent);
+                this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "scaleY": {
                 const newEvent = new NumberEvent(event, { ...baseConfig, type: 'scaleY', id, eventNumber: this.eventNumbers.scaleY++ });
                 this.scaleYEvents.push(newEvent);
+                this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "color": {
                 const newEvent = new ColorEvent(event, { ...baseConfig, type: 'color', id, eventNumber: this.eventNumbers.color++ });
                 this.colorEvents.push(newEvent);
+                this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "paint": {
                 const newEvent = new NumberEvent(event, { ...baseConfig, type: 'paint', id, eventNumber: this.eventNumbers.paint++ });
                 this.paintEvents.push(newEvent);
+                this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "text": {
@@ -214,6 +225,7 @@ export class ExtendedEventLayer extends AbstractEventLayer implements IExtendedE
             case "incline": {
                 const newEvent = new NumberEvent(event, { ...baseConfig, type: 'incline', id, eventNumber: this.eventNumbers.incline++ });
                 this.inclineEvents.push(newEvent);
+                this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             default:

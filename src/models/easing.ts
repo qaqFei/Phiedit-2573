@@ -1,8 +1,5 @@
 import { clamp } from "lodash";
 
-/** 
- * 小秘密：这段代码是从lchzh3473的模拟器里抄过来的
- */
 export const easingFuncs = {
     1: (t: number) => t,
     2: (t: number) => Math.sin(t * Math.PI / 2),

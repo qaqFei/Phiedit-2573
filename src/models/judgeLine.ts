@@ -4,6 +4,7 @@ import { BaseEventLayer, ExtendedEventLayer, IBaseEventLayer, IExtendedEventLaye
 import { INote, Note } from "./note"
 import { BaseEvent, NumberEvent } from "./event"
 import { beatsCompare, BPM } from "./beats"
+import ChartError from "./error"
 interface JudgeLineOptions {
     BPMList: BPM[],
     judgeLineNumber: number
@@ -68,7 +69,7 @@ export interface IJudgeLine {
 }
 export class JudgeLine implements IJudgeLine {
     Group = 0
-    Name = "Unnamed"
+    Name = "Unknown"
     Texture = "line.png"
     bpmfactor = 1
     eventLayers: BaseEventLayer[] = []
@@ -125,6 +126,7 @@ export class JudgeLine implements IJudgeLine {
     attachUI?: "pause" | "combonumber" | "combo" | "score" | "bar" | "name" | "level"
     id: number
     private noteNumber = 0;
+    readonly errors: ChartError[] = [];
     getAllEvents() {
         const events: BaseEvent[] = [];
         this.eventLayers.forEach(eventLayer => {
@@ -174,10 +176,11 @@ export class JudgeLine implements IJudgeLine {
             id
         });
         this.notes.push(newNote);
+        this.errors.push(...newNote.errors);
         return newNote;
     }
     addEventLayer() {
-        if(this.eventLayers.length >= 4){
+        if (this.eventLayers.length >= 4) {
             throw new Error("最多只能有4个事件层级")
         }
         const newEventLayer = this.createAnInitializedEventLayer(0, 0, 0, 0, 0);
@@ -321,10 +324,10 @@ export class JudgeLine implements IJudgeLine {
         if (eventLayerNumber < 0) {
             throw new Error(`事件层编号不能小于0，但当前为${id}`)
         }
-        if (!Number.isInteger(eventLayerNumber)){
+        if (!Number.isInteger(eventLayerNumber)) {
             throw new Error(`事件层编号必须是整数，但当前为${eventLayerNumber}`)
         }
-        if (eventLayerNumber >= 10){
+        if (eventLayerNumber >= 10) {
             throw new Error(`试图访问${eventLayerNumber}号事件层，但目前最多支持10个事件层`)
         }
         if (eventLayerNumber >= this.eventLayers.length) {
@@ -333,51 +336,231 @@ export class JudgeLine implements IJudgeLine {
         return this.eventLayers[eventLayerNumber];
     }
     constructor(judgeLine: unknown, readonly options: JudgeLineOptions) {
+        this.id = options.judgeLineNumber;
         if (isObject(judgeLine)) {
-            if ("Group" in judgeLine && isNumber(judgeLine.Group))
-                this.Group = judgeLine.Group;
-            if ("Name" in judgeLine && isString(judgeLine.Name))
-                this.Name = judgeLine.Name;
-            if ("Texture" in judgeLine && isString(judgeLine.Texture))
-                this.Texture = judgeLine.Texture;
-            if ("isCover" in judgeLine)
-                this.isCover = judgeLine.isCover ? JudgeLineCover.Cover : JudgeLineCover.Uncover;
-            if ("father" in judgeLine && isNumber(judgeLine.father))
-                this.father = judgeLine.father;
-            if ("zOrder" in judgeLine && isNumber(judgeLine.zOrder))
-                this.zOrder = judgeLine.zOrder;
-            if ("eventLayers" in judgeLine && isArray(judgeLine.eventLayers)) {
-                for (let i = 0; i < judgeLine.eventLayers.length; i++) {
-                    const eventLayer = judgeLine.eventLayers[i];
-                    this.eventLayers.push(new BaseEventLayer(eventLayer, {
-                        judgeLineNumber: options.judgeLineNumber,
-                        BPMList: options.BPMList,
-                        eventLayerId: i.toString()
-                    }));
+            if ("Group" in judgeLine) {
+                if (isNumber(judgeLine.Group)) {
+                    this.Group = judgeLine.Group;
+                }
+                else {
+                    this.errors.push(new ChartError(
+                        `${this.id}号判定线：判定线的 Group 属性必须是数字，但读取到了 ${judgeLine.Group}。将会被替换为数字 0。`,
+                        "ChartReadError"
+                    ));
                 }
             }
-            if ("extended" in judgeLine)
-                this.extended = new ExtendedEventLayer(judgeLine.extended, {
+            else {
+                this.errors.push(new ChartError(
+                    `${this.id}号判定线：判定线缺少 Group 属性。将会被设为数字 0。`,
+                    "ChartReadError"
+                ));
+            }
+
+
+            if ("Name" in judgeLine) {
+                if (isString(judgeLine.Name)) {
+                    this.Name = judgeLine.Name;
+                }
+                else {
+                    this.errors.push(new ChartError(
+                        `${this.id}号判定线：判定线的 Name 属性必须是字符串，但读取到了 ${judgeLine.Name}。将会被替换为字符串 "Unknown"。`,
+                        "ChartReadError"
+                    ));
+                }
+            }
+            else {
+                this.errors.push(new ChartError(
+                    `${this.id}号判定线：判定线缺少 Name 属性。将会被设为字符串 "Unknown"。`,
+                    "ChartReadError"
+                ));
+            }
+
+
+            if ("Texture" in judgeLine) {
+                if (isString(judgeLine.Texture)) {
+                    this.Texture = judgeLine.Texture;
+                }
+                else {
+                    this.errors.push(new ChartError(
+                        `${this.id}号判定线：判定线的 Texture 属性必须是字符串，但读取到了 ${judgeLine.Texture}。将会被替换为字符串 "line.png"。`,
+                        "ChartReadError"
+                    ));
+                }
+            }
+            else {
+                this.errors.push(new ChartError(
+                    `${this.id}号判定线：判定线缺少 Texture 属性。将会被设为字符串 "line.png"。`,
+                    "ChartReadError"
+                ));
+            }
+
+
+            if ("isCover" in judgeLine) {
+                if (isNumber(judgeLine.isCover)) {
+                    if (judgeLine.isCover === JudgeLineCover.Cover || judgeLine.isCover === JudgeLineCover.Uncover) {
+                        this.isCover = judgeLine.isCover;
+                    }
+                    else {
+                        this.errors.push(new ChartError(
+                            `${this.id}号判定线：判定线的 isCover 属性必须是 0 或 1，但读取到了 ${judgeLine.isCover}。将会被替换为数字 1。`,
+                            "ChartReadError"
+                        ));
+                    }
+                }
+                else {
+                    this.errors.push(new ChartError(
+                        `${this.id}号判定线：判定线的 isCover 属性必须是数字，但读取到了 ${judgeLine.isCover}。将会被替换为数字 1。`,
+                        "ChartReadError"
+                    ));
+                }
+            }
+            else {
+                this.errors.push(new ChartError(
+                    `${this.id}号判定线：判定线缺少 isCover 属性。将会被设为数字 1。`,
+                    "ChartReadError"
+                ));
+            }
+
+
+            if ("father" in judgeLine) {
+                if (isNumber(judgeLine.father)) {
+                    this.father = judgeLine.father;
+                }
+                else {
+                    this.errors.push(new ChartError(
+                        `${this.id}号判定线：判定线的 father 属性必须是数字，但读取到了 ${judgeLine.father}。将会被替换为数字 -1。`,
+                        "ChartReadError"
+                    ));
+                }
+            }
+            else {
+                this.errors.push(new ChartError(
+                    `${this.id}号判定线：判定线缺少 father 属性。将会被设为数字 -1。`,
+                    "ChartReadError"
+                ));
+            }
+
+
+            if ("zOrder" in judgeLine) {
+                if (isNumber(judgeLine.zOrder)) {
+                    this.zOrder = judgeLine.zOrder;
+                }
+                else {
+                    this.errors.push(new ChartError(
+                        `${this.id}号判定线：判定线的 zOrder 属性必须是数字，但读取到了 ${judgeLine.zOrder}。将会被替换为数字 0。`,
+                        "ChartReadError"
+                    ));
+                }
+            }
+            else {
+                this.errors.push(new ChartError(
+                    `${this.id}号判定线：判定线缺少 zOrder 属性。将会被设为数字 0。`,
+                    "ChartReadError"
+                ));
+            }
+
+
+            if ("eventLayers" in judgeLine) {
+                if (isArray(judgeLine.eventLayers)) {
+                    for (let i = 0; i < judgeLine.eventLayers.length; i++) {
+                        const eventLayer = judgeLine.eventLayers[i];
+                        const newEventLayer = new BaseEventLayer(eventLayer, {
+                            judgeLineNumber: options.judgeLineNumber,
+                            BPMList: options.BPMList,
+                            eventLayerId: i.toString()
+                        });
+                        this.eventLayers.push(newEventLayer);
+                        this.errors.push(...newEventLayer.errors);
+                    }
+                }
+                else {
+                    this.errors.push(new ChartError(
+                        `${this.id}号判定线：判定线的 eventLayers 属性必须是数组，但读取到了 ${judgeLine.eventLayers}。将会被替换为空数组。`,
+                        "ChartReadError"
+                    ));
+                }
+            }
+            else {
+                this.errors.push(new ChartError(
+                    `${this.id}号判定线：判定线缺少 eventLayers 属性。将会被设为空数组。`,
+                    "ChartReadError"
+                ));
+            }
+
+
+            if ("extended" in judgeLine) {
+                const newExtendedEventLayer = new ExtendedEventLayer(judgeLine.extended, {
                     judgeLineNumber: options.judgeLineNumber,
                     BPMList: options.BPMList,
                     eventLayerId: 'X'
                 });
-            if ("notes" in judgeLine && isArray(judgeLine.notes)) {
-                for (const note of judgeLine.notes) {
-                    this.addNote(note);
+                this.extended = newExtendedEventLayer;
+                this.errors.push(...newExtendedEventLayer.errors);
+            }
+            else {
+                this.errors.push(new ChartError(
+                    `${this.id}号判定线：判定线缺少 extended 属性。将会被设为默认值。`,
+                    "ChartReadError"
+                ));
+            }
+
+
+            if ("notes" in judgeLine) {
+                if (isArray(judgeLine.notes)) {
+                    for (const note of judgeLine.notes) {
+                        this.addNote(note);
+                    }
+                }
+                else {
+                    this.errors.push(new ChartError(
+                        `${this.id}号判定线：判定线的 notes 属性必须是数组，但读取到了 ${judgeLine.notes}。将会被替换为空数组。`,
+                        "ChartReadError"
+                    ));
                 }
             }
+            else {
+                this.errors.push(new ChartError(
+                    `${this.id}号判定线：判定线缺少 notes 属性。将会被设为空数组。`,
+                    "ChartReadError"
+                ));
+            }
+
+
+            if ("bpmfactor" in judgeLine) {
+                if (isNumber(judgeLine.bpmfactor)) {
+                    this.bpmfactor = judgeLine.bpmfactor;
+                }
+                else {
+                    this.errors.push(new ChartError(
+                        `${this.id}号判定线：判定线的 bpmfactor 属性必须是数字，但读取到了 ${judgeLine.bpmfactor}。将会被替换为数字 1。`,
+                        "ChartReadError"
+                    ));
+                }
+            }
+            else {
+                this.errors.push(new ChartError(
+                    `${this.id}号判定线：判定线缺少 bpmfactor 属性。将会被设为数字 1。`,
+                    "ChartReadError"
+                ));
+            }
         }
-        // 设置默认的空特殊事件层
+        else {
+            this.errors.push(new ChartError(
+                `${this.id}号判定线：判定线必须是一个对象，但读取到了 ${judgeLine}。将会使用默认值。`,
+                "ChartReadError"
+            ));
+        }
+
+        // 设置默认的空特殊事件层（如果extended未正确初始化）
         this.extended ??= new ExtendedEventLayer(null, {
             judgeLineNumber: options.judgeLineNumber,
             BPMList: options.BPMList,
             eventLayerId: 'X'
         });
+
         // 如果普通事件层不足4层，自动补至4层
         while (this.eventLayers.length < 4) {
             this.addEventLayer();
         }
-        this.id = options.judgeLineNumber;
     }
 }

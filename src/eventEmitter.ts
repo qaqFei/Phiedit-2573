@@ -65,6 +65,7 @@ interface GlobalEventMap {
     FILL_NOTES: [NoteType, EasingType, number]
     FILL_EVENTS: [Beats | undefined, Beats | undefined, number, string]
     BIND_LINE: [number[], Beats | undefined, number]
+    CHECK_ERRORS: [string]
 
     SELECTION_UPDATE: []
     HISTORY_UPDATE: []

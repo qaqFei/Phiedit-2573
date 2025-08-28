@@ -1,5 +1,5 @@
 <template>
-    <div class="clipboard-panel">
+    <div class="clipboard-panel right-inner">
         <Teleport :to="props.titleTeleport">
             剪贴板管理
         </Teleport>
@@ -15,6 +15,9 @@
         <MyInputBeats v-model="time">
             <template #prepend>
                 粘贴时间
+                <MyQuestionMark>
+                    把剪切板里的内容粘贴到指定时间处。该时间会与剪切板中时间最早的元素对齐。
+                </MyQuestionMark>
             </template>
         </MyInputBeats>
         <MyButton @click="globalEventEmitter.emit('PASTE', time)">
@@ -112,10 +115,3 @@ const paragraphRepeater = store.useManager("paragraphRepeater");
 
 const time = ref<Beats>([0, 0, 1]);
 </script>
-<style scoped>
-.clipboard-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>

@@ -1,5 +1,5 @@
 <template>
-    <div class="number-event-panel">
+    <div class="number-event-panel left-inner">
         <Teleport :to="props.titleTeleport">
             {{ model.type }}事件编辑
         </Teleport>
@@ -13,7 +13,7 @@
             <template #prepend>
                 时间
                 <MyQuestionMark>
-                    输入开始时间和结束时间，以空格隔开<br>
+                    输入开始时间和结束时间，以空格隔开。<br>
                     开始时间和结束时间的格式都要满足“a.b/c”，<br>
                     其中a、b、c均为整数，表示第a又c分之b拍。<br>
                     特殊的，如果b=0，则c必须等于1，表示第a拍。<br>
@@ -169,8 +169,6 @@ watch(model, () => {
     switchBezier.value?.updateShowedValue();
     selectEasing.value?.updateShowedValue();
     switchDisabled.value?.updateShowedValue();
-}, {
-    deep: false
 });
 const inputEvent: IEvent<RGBcolor> & EventExtends = reactive({
     startTime: model.value.startTime,
@@ -330,10 +328,3 @@ function stick() {
     model.value.start = event.end;
 }
 </script>
-<style scoped>
-.number-event-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>

@@ -1,5 +1,5 @@
 <template>
-    <div class="judgeline-panel">
+    <div class="judgeline-panel right-inner">
         <Teleport :to="props.titleTeleport">
             判定线编辑
         </Teleport>
@@ -137,10 +137,3 @@ function handleDeleteJudgeLine() {
     }
 }
 </script>
-<style scoped>
-.judgeline-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>

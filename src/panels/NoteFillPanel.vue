@@ -1,5 +1,5 @@
 <template>
-    <div class="note-fill-panel">
+    <div class="note-fill-panel right-inner">
         <Teleport :to="props.titleTeleport">
             填充曲线音符
         </Teleport>
@@ -39,10 +39,3 @@ const noteCount = computed(() => {
     return selectionManager.selectedElements.filter(e => e instanceof Note).length;
 })
 </script>
-<style scoped>
-.note-fill-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>

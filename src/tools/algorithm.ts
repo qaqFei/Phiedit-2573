@@ -159,7 +159,11 @@ export class ExpressionCalculator {
                     const args = [];
                     while (tokens[index] !== ')') {
                         args.push(parse1());
-                        if (index < tokens.length && tokens[index] === ',') index++;
+                        if (index < tokens.length && tokens[index] === ',')
+                            index++;
+                        if (index >= tokens.length) {
+                            throw new Error(`函数 ${id} 的括号不匹配`);
+                        }
                     }
                     index++;
                     return new CallExpression(id, args);
@@ -195,6 +199,7 @@ export class ExpressionCalculator {
                 case '*': return left * right;
                 case '/': return left / right;
                 case '^': return left ** right;
+                case '%': return left % right;
                 default: throw new Error(`未知运算符: ${node.op}`);
             }
         }

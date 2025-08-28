@@ -6,11 +6,14 @@ export const defaultSettings = {
     lineLength: 4000,
     textSize: 50,
     noteSize: 175,
-    wheelSpeed: 0.5,
+    wheelSpeed: 0.2,
     autoplayOffset: 0,
     showJudgeLineNumber: true,
     showEventValues: false,
     markCurrentJudgeLine: true,
+    autoCheckErrors: false,
+    hitSoundVolume: 1,
+    musicVolume: 1,
 } as const;
 export default class SettingsManager extends Manager {
     _settings: typeof defaultSettings = { ...defaultSettings };

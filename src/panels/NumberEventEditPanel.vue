@@ -1,5 +1,5 @@
 <template>
-    <div class="number-event-panel">
+    <div class="number-event-panel left-inner">
         <Teleport :to="props.titleTeleport">
             {{ model.type }}事件编辑
         </Teleport>
@@ -16,7 +16,7 @@
             <template #prepend>
                 时间
                 <MyQuestionMark>
-                    输入开始时间和结束时间，以空格隔开<br>
+                    输入开始时间和结束时间，以空格隔开。<br>
                     开始时间和结束时间的格式都要满足“a.b/c”，<br>
                     其中a、b、c均为整数，表示第a又c分之b拍。<br>
                     特殊的，如果b=0，则c必须等于1，表示第a拍。<br>
@@ -33,28 +33,28 @@
             <template #prepend>
                 数值
                 <MyQuestionMark>
-                    输入开始数值和结束数值，以空格隔开<br>
-                    如果只输入一个数值，就代表开始数值与结束数值相同<br>
+                    输入开始数值和结束数值，以空格隔开。<br>
+                    如果只输入一个数值，就代表开始数值与结束数值相同。<br>
                     <template v-if="model.type == 'moveX'">
-                        该事件为moveX事件，用来控制判定线锚点的X坐标。<br>
-                        当X坐标为正数时，判定线锚点在屏幕右半边，为负数时，判定线锚点在屏幕左半边。<br>
+                        该事件为moveX事件，用来控制判定线控制点的X坐标。<br>
+                        当X坐标为正数时，判定线控制点在屏幕右半边，为负数时，判定线控制点在屏幕左半边。<br>
                         屏幕可以显示的X、Y坐标范围分别为[-675, 675]和[-450,450]，但你可以设置超出屏幕的moveX或moveY事件。<br>
-                        若设置了超出屏幕的moveX或moveY事件，超出屏幕的部分会隐藏。<br>
-                        判定线锚点的作用：判定线本体一定经过判定线锚点。使用moveX、moveY和rotate三种事件可以唯一确定判定线的位置。<br>
+                        若设置了超出屏幕的moveX或moveY事件，判定线及其上面的音符超出屏幕的部分会被隐藏。<br>
+                        判定线控制点的作用：判定线本体一定经过判定线控制点。使用moveX、moveY和rotate三种事件可以唯一确定判定线的位置。<br>
                     </template>
                     <template v-else-if="model.type == 'moveY'">
-                        该事件为moveY事件，用来控制判定线锚点的Y坐标。<br>
-                        当Y坐标为正数时，判定线锚点在屏幕上半边，为负数时，判定线锚点在屏幕下半边。<br>
+                        该事件为moveY事件，用来控制判定线控制点的Y坐标。<br>
+                        当Y坐标为正数时，判定线控制点在屏幕上半边，为负数时，判定线控制点在屏幕下半边。<br>
                         屏幕可以显示的X、Y坐标范围分别为[-675, 675]和[-450,450]，但你可以设置超出屏幕的moveX或moveY事件。<br>
-                        若设置了超出屏幕的moveX或moveY事件，超出屏幕的部分会隐藏。<br>
-                        判定线锚点的作用：判定线本体一定经过判定线锚点。使用moveX、moveY和rotate三种事件可以唯一确定判定线的位置。<br>
+                        若设置了超出屏幕的moveX或moveY事件，判定线及其上面的音符超出屏幕的部分会被隐藏。<br>
+                        判定线控制点的作用：判定线本体一定经过判定线控制点。使用moveX、moveY和rotate三种事件可以唯一确定判定线的位置。<br>
                     </template>
                     <template v-else-if="model.type == 'rotate'">
                         该事件为rotate事件，用来控制判定线的角度。<br>
                         当角度为0时，判定线与X轴平行。当角度为90时，判定线与Y轴平行。<br>
-                        角度增大会让判定线绕锚点顺时针旋转，角度减小判定线则绕锚点逆时针旋转。<br>
+                        角度增大会让判定线绕控制点顺时针旋转，角度减小判定线则绕控制点逆时针旋转。<br>
                         角度可以超过360度或低于-360度。<br>
-                        判定线锚点的作用：判定线本体一定经过判定线锚点。使用moveX、moveY和rotate三种事件可以唯一确定判定线的位置。<br>
+                        判定线控制点的作用：判定线本体一定经过判定线控制点。使用moveX、moveY和rotate三种事件可以唯一确定判定线的位置。<br>
                     </template>
                     <template v-else-if="model.type == 'alpha'">
                         该事件为alpha事件，用于控制判定线透明度。<br>
@@ -220,8 +220,6 @@ watch(model, () => {
     switchBezier.value?.updateShowedValue();
     selectEasing.value?.updateShowedValue();
     switchDisabled.value?.updateShowedValue();
-}, {
-    deep: false
 });
 const inputEvent: IEvent<number> & EventExtends = reactive({
     startTime: model.value.startTime,
@@ -374,10 +372,3 @@ function stick() {
     model.value.start = event.end;
 }
 </script>
-<style scoped>
-.number-event-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>

@@ -1,5 +1,5 @@
 <template>
-    <div class="chartmeta-panel">
+    <div class="chartmeta-panel right-inner">
         <Teleport :to="props.titleTeleport">
             谱面基本信息
         </Teleport>
@@ -38,10 +38,3 @@ const props = defineProps<{
 }>();
 const chart = store.useChart();
 </script>
-<style scoped>
-.chartmeta-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>

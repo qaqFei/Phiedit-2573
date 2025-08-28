@@ -1,5 +1,5 @@
 <template>
-    <div class="note-panel">
+    <div class="note-panel left-inner">
         <Teleport :to="props.titleTeleport">
             {{ model.typeString }}音符编辑
         </Teleport>
@@ -40,7 +40,8 @@
             <template #prepend>
                 时间
                 <MyQuestionMark>
-                    输入开始时间和结束时间，以空格隔开<br>
+                    输入开始时间和结束时间，以空格隔开。<br>
+                    非Hold音符只能输入一个时间。<br>
                     开始时间和结束时间的格式都要满足“a.b/c”，<br>
                     其中a、b、c均为整数，表示第a又c分之b拍。<br>
                     特殊的，如果b=0，则c必须等于1，表示第a拍。<br>
@@ -94,7 +95,9 @@
             <template #prepend>
                 速度倍率
                 <MyQuestionMark>
-                    1为正常速度。在做出差速下落的效果时可能会用到。<br>
+                    1为正常速度，2为双倍速度，0.5为一半速度，以此类推。<br>
+                    速度以判定线上speed事件的速度为基准，乘以这个数。<br>
+                    在做出差速下落的效果时可能会用到。<br>
                     不能设置为负数。<br>
                 </MyQuestionMark>
             </template>
@@ -111,7 +114,7 @@
                 <MyQuestionMark>
                     1为正常大小。大小越大，横向的拉伸越大。纵向永远不会拉伸。<br>
                     不能设置为负数。<br>
-                    在Phira中，大小不会影响判定范围的大小，所以无法还原大小键。<br>
+                    在Phira中，大小不会影响判定范围的大小，所以无法还原其他音游中的大小键。<br>
                 </MyQuestionMark>
             </template>
         </MyInputNumber>
@@ -126,7 +129,7 @@
             <template #prepend>
                 透明度
                 <MyQuestionMark>
-                    255为不透明，0为完全透明，也就是隐藏。<br>
+                    255为不透明；0为完全透明，也就是隐藏。<br>
                     不能大于255或小于0。<br>
                 </MyQuestionMark>
             </template>
@@ -158,7 +161,7 @@
                 可见时间
                 <MyQuestionMark>
                     该音符在被判定前多少秒会保持显示状态。默认值为一个很大的数，表示持续显示。<br>
-                    在还原舞萌或Dynamix时可能会用到。不能设置为负数。<br>
+                    在做出上隐的效果时可能会用到。不能设置为负数。<br>
                 </MyQuestionMark>
             </template>
         </MyInputNumber>
@@ -229,8 +232,6 @@ watch(model, () => {
     inputVisibleTime.value?.updateShowedValue();
     inputIsFake.value?.updateShowedValue();
     inputAbove.value?.updateShowedValue();
-}, {
-    deep: true
 });
 const inputNote: INote & NoteExtends = reactive({
     startTime: model.value.startTime,
@@ -324,10 +325,3 @@ function reverse() {
     model.value.positionX = -model.value.positionX;
 }
 </script>
-<style scoped>
-.note-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>

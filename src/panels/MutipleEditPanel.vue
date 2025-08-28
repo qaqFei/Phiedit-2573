@@ -1,5 +1,5 @@
 <template>
-    <div class="mutiple-panel">
+    <div class="mutiple-panel left-inner">
         <Teleport :to="props.titleTeleport">
             批量音符/事件编辑
         </Teleport>
@@ -65,7 +65,7 @@
             <template #footer="{ close }">
                 <MyButton
                     type="primary"
-                    @click="catchErrorByMessage(() => clone(), '克隆'), close()"
+                    @click="clone(), close()"
                 >
                     确定
                 </MyButton>
@@ -390,11 +390,6 @@ const description = computed(() => {
     return `将${subject}的${attribute}${verb}${value}`;
 })
 async function clone() {
-    // const result = cloneManager.checkIsValid();
-    // if (result.code != CloneValidStateCode.OK) {
-    //     ElMessage.error(result.message);
-    //     return;
-    // }
     globalEventEmitter.emit('CLONE');
 }
 /** 
@@ -523,10 +518,3 @@ function run() {
     historyManager.ungroup();
 }
 </script>
-<style scoped>
-.mutiple-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>
