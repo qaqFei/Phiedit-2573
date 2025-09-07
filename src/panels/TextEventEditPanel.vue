@@ -43,7 +43,7 @@
                     请输入起始文字。<br>
                     该事件为text事件，用于控制判定线显示的文字。<br>
                     只要有了text事件，就无法再显示原来的判定线了，只能显示文字。<br>
-                    有贴图的判定线无法使用text事件。<br>
+                    <em>text事件与判定线贴图、UI绑定不能同时存在。</em><br>
                 </MyQuestionMark>
             </template>
         </MyInput>
@@ -59,28 +59,31 @@
                     请输入结束文字。<br>
                     结束文字大多数时候都应该与起始文字相同。也有特殊情况：<br>
                     如果起始文字是结束文字的前缀，或结束文字是起始文字的前缀，<br>
-                    就会显现一种文字逐渐出现的效果。<br>
-                    起始文字和结束文字<em>不能</em>互不为前缀。<br>
+                    就会显现一种文字逐渐出现或逐渐消失的效果。<br>
+                    起始文字和结束文字<em>必须</em>要么相同，要么有其中一个是另一个的前缀。<br>
                 </MyQuestionMark>
             </template>
         </MyInput>
         <MySwitch
             ref="switchBezier"
             v-model="inputEvent.bezier"
-            :active-value="1"
-            :inactive-value="0"
+            :active-value="Bezier.On"
+            :inactive-value="Bezier.Off"
             @change="updateModel('bezier'), createHistory()"
         >
-            Bezier曲线（暂不支持）
+            使用Bezier曲线
         </MySwitch>
-        <span v-if="model.bezier">
-            暂不支持Bezier曲线
-            <!-- <MyBezier
-                v-model="inputEvent.bezierPoints"
-                @change="createHistory()"
-                @input="updateModel('bezierPoints')"
-            /> -->
-        </span>
+        <MyInputBezier
+            v-if="model.bezier"
+            ref="inputBezier"
+            v-model="inputEvent.bezierPoints"
+            @change="createHistory()"
+            @input="updateModel('bezierPoints')"
+        >
+            <template #prepend>
+                控制点坐标
+            </template>
+        </MyInputBezier>
         <MySelectEasing
             v-else
             ref="selectEasing"
@@ -95,7 +98,7 @@
             禁用
         </MySwitch>
         <MyGridContainer :columns="3">
-            <ElTooltip>
+            <ElTooltip placement="top">
                 <template #default>
                     <MyButton @click="swap">
                         交换
@@ -105,7 +108,8 @@
                     把事件的开始值和结束值交换<br>
                     快捷键：Alt + S<br>
                 </template>
-            </ElTooltip><ElTooltip>
+            </ElTooltip>
+            <ElTooltip placement="top">
                 <template #default>
                     <MyButton @click="stick">
                         粘合
@@ -117,31 +121,31 @@
                 </template>
             </ElTooltip>
         </MyGridContainer>
-        <h3>缓动曲线截取</h3>
-        <ElSlider
-            v-model="inputEvent.easingLeftRight"
-            range
-            :min="0"
-            :max="1"
-            :step="0.01"
-            @change="createHistory()"
-            @input="updateModel('easingLeft', 'easingRight')"
+        <MyEasing
+            v-model="inputEvent"
+            :zoom-out="1.25"
+            @bezier-input="updateModel('bezierPoints'), inputBezier?.updateShowedValue()"
+            @bezier-change="createHistory()"
+            @easing-lr-input="updateModel('easingLeft', 'easingRight')"
+            @easing-lr-change="createHistory()"
         />
     </div>
 </template>
 <script setup lang="ts">
-import MyButton from '@/myElements/MyButton.vue';
-import { IEvent, TextEvent } from "../models/event";
+import MyButton from "@/myElements/MyButton.vue";
+import { Bezier, IEvent, TextEvent } from "../models/event";
 import MyInput from "../myElements/MyInput.vue";
 import MySwitch from "../myElements/MySwitch.vue";
 import MySelectEasing from "@/myElements/MySelectEasing.vue";
-import { addBeats, beatsCompare, formatBeats, isEqualBeats, isLessThanOrEqualBeats, parseBeats, validateBeats } from "@/models/beats";
+import { addBeats, beatsCompare, formatBeats, isEqualBeats, isLessThanOrEqualBeats, parseBeats, makeSureBeatsValid } from "@/models/beats";
 import { onBeforeUnmount, onMounted, reactive, useTemplateRef } from "vue";
 import { Ref, watch } from "vue";
 import globalEventEmitter from "@/eventEmitter";
 import store from "@/store";
-import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
-import MyGridContainer from '@/myElements/MyGridContainer.vue';
+import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
+import MyGridContainer from "@/myElements/MyGridContainer.vue";
+import MyEasing from "@/myElements/MyEasing.vue";
+import MyInputBezier from "@/myElements/MyInputBezier.vue";
 const model = defineModel<TextEvent>({
     required: true,
 }) as Ref<TextEvent>;
@@ -154,6 +158,7 @@ const inputEnd = useTemplateRef("inputEnd");
 const switchBezier = useTemplateRef("switchBezier");
 const selectEasing = useTemplateRef("selectEasing");
 const switchDisabled = useTemplateRef("switchDisabled");
+const inputBezier = useTemplateRef("inputBezier");
 interface EventExtends {
     startEndTime: string;
     easingLeftRight: number[];
@@ -171,6 +176,7 @@ const attributes = [
     "easingRight"
 ] as const;
 const historyManager = store.useManager("historyManager");
+
 // const mouseManager = store.useManager("mouseManager");
 watch(model, () => {
     for (const attr of attributes) {
@@ -183,6 +189,7 @@ watch(model, () => {
     switchBezier.value?.updateShowedValue();
     selectEasing.value?.updateShowedValue();
     switchDisabled.value?.updateShowedValue();
+    inputBezier.value?.updateShowedValue();
 });
 const inputEvent: IEvent<string> & EventExtends = reactive({
     startTime: model.value.startTime,
@@ -201,19 +208,21 @@ const inputEvent: IEvent<string> & EventExtends = reactive({
         if (this.startTime === this.endTime) {
             return formatBeats(this.startTime);
         }
+
         // 否则返回开始时间和结束时间的组合
         return formatBeats(this.startTime) + seperator + formatBeats(this.endTime);
     },
     set startEndTime(value: string) {
-        const [start, end] = value.split(seperator);
+        const [start, end] = value.trim().split(seperator);
         if (!start) return;
-        this.startTime = validateBeats(parseBeats(start));
+        this.startTime = makeSureBeatsValid(parseBeats(start));
+
         // 如果只输入了一个时间，则将结束时间设置为开始时间加1拍
         if (!end) {
             this.endTime = addBeats(this.startTime, [1, 0, 1]);
             return;
         }
-        this.endTime = validateBeats(parseBeats(end));
+        this.endTime = makeSureBeatsValid(parseBeats(end));
     },
     get easingLeftRight() {
         return [this.easingLeft, this.easingRight];
@@ -234,11 +243,12 @@ const oldValues = {
     easingLeft: model.value.easingLeft,
     easingRight: model.value.easingRight
 };
+
 /** 检查属性是否被修改过，并记录到历史记录中 */
 function createHistory() {
     // 遍历新值和旧值，找到不一样的属性
     for (const attr of attributes) {
-        if (attr == "startTime" || attr == "endTime") {
+        if (attr === "startTime" || attr === "endTime") {
             if (isEqualBeats(inputEvent[attr], oldValues[attr])) {
                 continue;
             }
@@ -248,6 +258,7 @@ function createHistory() {
             historyManager.recordModifyEvent(model.value.id, attr, inputEvent[attr], oldValues[attr]);
         }
     }
+
     // 把旧值更新，以免重复记录
     for (const attr of attributes) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -264,6 +275,7 @@ function updateModel<K extends keyof IEvent<number>>(...attrNames: K[]) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (model.value[attrName] as any) = inputEvent[attrName];
     }
+
     // historyManager.ungroup();
 }
 onMounted(() => {
@@ -284,12 +296,15 @@ function swap() {
     [inputEvent.start, inputEvent.end] = [inputEvent.end, inputEvent.start];
     updateModel("start", "end");
     createHistory();
+    inputStart.value?.updateShowedValue();
+    inputEnd.value?.updateShowedValue();
 }
 function stick() {
     const judgeLine = store.getJudgeLineById(model.value.judgeLineNumber);
     const eventLayer = judgeLine.getEventLayerById(model.value.eventLayerId);
     const events = eventLayer.getEventsByType(model.value.type) as TextEvent[];
     events.sort((event1, event2) => beatsCompare(event1.endTime, event2.endTime));
+
     // 找到结束时间小于model的开始时间的最大的事件
     let event = undefined;
     for (let i = events.length - 1; i >= 0; i--) {
@@ -299,8 +314,12 @@ function stick() {
         }
     }
     if (!event) {
-        throw new Error("当前事件前面没有事件，无法粘合")
+        throw new Error("当前事件前面没有事件，无法粘合");
     }
-    model.value.start = event.end;
+    inputEvent.start = event.end;
+    updateModel("start", "end");
+    createHistory();
+    inputStart.value?.updateShowedValue();
+    inputEnd.value?.updateShowedValue();
 }
 </script>

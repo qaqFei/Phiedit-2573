@@ -1,11 +1,12 @@
-import { cubicBezierEase, easingFuncs, EasingType } from "./easing";
-import { Beats, getBeatsValue, beatsToSeconds, validateBeats, BPM, addBeats } from "./beats"
-import { isArrayOfNumbers } from "../tools/typeCheck";
+import { BEZIER_POINTS_LENGTH, BezierPoints, cubicBezierEase, easingFuncs, EasingType, isEasingType } from "./easing";
+import { Beats, getBeatsValue, beatsToSeconds, makeSureBeatsValid, BPM, addBeats, isGreaterThanBeats, isLessThanBeats, isLessThanOrEqualBeats, isGreaterThanOrEqualBeats } from "./beats";
+import { isArrayOfNumbers } from "../tools/typeTools";
 import { RGBcolor } from "../tools/color";
-import { isObject, isNumber, isString } from "lodash";
+import { isObject, isNumber, isString, isInteger } from "lodash";
 import { checkAndSort } from "@/tools/algorithm";
 import ChartError from "./error";
-export type BezierPoints = [number, number, number, number]
+import { Note } from "./note";
+export type NoteOrEvent = Note | NumberEvent | ColorEvent | TextEvent;
 export interface IEvent<T> {
     bezier: 0 | 1;
     bezierPoints: BezierPoints;
@@ -16,7 +17,7 @@ export interface IEvent<T> {
     end: T;
     startTime: Beats;
     endTime: Beats;
-    linkgroup: number;
+    linkgroup?: number;
     isDisabled: boolean;
 }
 interface EventOptions {
@@ -26,6 +27,13 @@ interface EventOptions {
     BPMList: BPM[];
     type: string;
     id?: string;
+}
+export enum Bezier {
+    On = 1,
+    Off = 0
+}
+export function isBezier(value: unknown): value is Bezier {
+    return value === Bezier.On || value === Bezier.Off;
 }
 export const eventTypes = ["moveX", "moveY", "rotate", "alpha", "speed", "scaleX", "scaleY", "color", "paint", "text"] as const;
 export const eventAttributes = [
@@ -40,23 +48,25 @@ export const eventAttributes = [
     "endTime",
     "linkgroup"
 ] as const;
-export abstract class BaseEvent<T = unknown> implements IEvent<T> {
-    bezier: 0 | 1 = 0;
-    bezierPoints: BezierPoints = [0, 0, 0, 0];
+export abstract class AbstractEvent<T = unknown> implements IEvent<T> {
+    bezier: Bezier = Bezier.Off;
+    bezierPoints: BezierPoints = [0, 0, 1, 1];
     easingLeft: number = 0;
     easingRight: number = 1;
     easingType: EasingType = EasingType.Linear;
     abstract start: T;
     abstract end: T;
-    _startTime: Beats = [0, 0, 1]
-    _endTime: Beats = [0, 0, 1]
+    _startTime: Beats = [0, 0, 1];
+    _endTime: Beats = [0, 0, 1];
     cachedStartSeconds: number;
     cachedEndSeconds: number;
     readonly BPMList: BPM[];
-    /** 事件的唯一标识符，比如"0-layer0-moveX0" 表示第0号判定线上第0层的0号moveX事件 */
-    readonly id: string
+
+    /** 事件的唯一标识符，比如"0-1-moveX-2" 表示第0号判定线上第1层的2号moveX事件 */
+    readonly id: string;
     judgeLineNumber: number;
     type: string;
+
     /** 事件层级号，普通事件的层级号是数字（比如"0"，但仍然是字符串类型），特殊事件的层级号是字符"X" */
     eventLayerId: string;
     isDisabled: boolean = false;
@@ -68,22 +78,24 @@ export abstract class BaseEvent<T = unknown> implements IEvent<T> {
         return this._endTime;
     }
     set startTime(beats: Beats) {
-        this._startTime = validateBeats(beats);
+        this._startTime = makeSureBeatsValid(beats);
         this.calculateSeconds();
     }
     set endTime(beats: Beats) {
-        this._endTime = validateBeats(beats);
+        this._endTime = makeSureBeatsValid(beats);
         this.calculateSeconds();
     }
     readonly errors: ChartError[] = [];
-    validateTime() {
+
+    /** 确保endTime大于startTime */
+    makeTimeValid() {
         if (getBeatsValue(this.startTime) > getBeatsValue(this.endTime)) {
             const a = this.startTime, b = this.endTime;
             this.startTime = b;
             this.endTime = a;
         }
-        else if (getBeatsValue(this.startTime) == getBeatsValue(this.endTime)) {
-            this.endTime = addBeats(this.endTime, [0, 0, 1]); // 确保endTime大于startTime
+        else if (getBeatsValue(this.startTime) === getBeatsValue(this.endTime)) {
+            this.endTime = addBeats(this.endTime, [0, 0, 1]);
         }
     }
     get easingLeftRight() {
@@ -114,7 +126,12 @@ export abstract class BaseEvent<T = unknown> implements IEvent<T> {
             endTime: [...this.endTime],
             linkgroup: this.linkgroup,
             isDisabled: this.isDisabled,
-        }
+        };
+    }
+    isOverlapped(element: NoteOrEvent, overlapWhenEqual = false) {
+        return overlapWhenEqual ?
+            isLessThanOrEqualBeats(element.startTime, this.endTime) && isGreaterThanOrEqualBeats(element.endTime, this.startTime) :
+            isLessThanBeats(element.startTime, this.endTime) && isGreaterThanBeats(element.endTime, this.startTime);
     }
     constructor(event: unknown, options: EventOptions) {
         this.judgeLineNumber = options.judgeLineNumber;
@@ -125,38 +142,46 @@ export abstract class BaseEvent<T = unknown> implements IEvent<T> {
         if (isObject(event)) {
             // bezier
             if ("bezier" in event) {
-                if (isNumber(event.bezier) && (event.bezier === 0 || event.bezier === 1)) {
+                if (isBezier(event.bezier)) {
                     this.bezier = event.bezier;
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：事件的 bezier 属性必须是 0 或 1，但读取到了 ${event.bezier}。将会被替换为数字 0。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this as NumberEvent | ColorEvent | TextEvent
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：事件缺少 bezier 属性。将会被设为数字 0。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this as NumberEvent | ColorEvent | TextEvent
                 ));
             }
 
             // bezierPoints
             if ("bezierPoints" in event) {
-                if (isArrayOfNumbers(event.bezierPoints, 4)) {
+                if (isArrayOfNumbers(event.bezierPoints, BEZIER_POINTS_LENGTH)) {
                     this.bezierPoints = [...event.bezierPoints];
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：事件的 bezierPoints 属性必须是包含4个数字的数组，但读取到了 ${JSON.stringify(event.bezierPoints)}。将会被替换为默认值 [0, 0, 0, 0]。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this as NumberEvent | ColorEvent | TextEvent
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
-                    `${this.id}：事件缺少 bezierPoints 属性。将会被设为默认值 [0, 0, 0, 0]。`,
-                    "ChartReadError",
+                    `${this.id}：事件缺少 bezierPoints 属性。将会被设为默认值 [0, 0, 1, 1]。`,
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this as NumberEvent | ColorEvent | TextEvent
                 ));
             }
@@ -167,46 +192,53 @@ export abstract class BaseEvent<T = unknown> implements IEvent<T> {
                     if (event.easingLeft >= 0 && event.easingRight <= 1 && event.easingLeft < event.easingRight) {
                         this.easingLeft = event.easingLeft;
                         this.easingRight = event.easingRight;
-                    } else {
+                    }
+                    else {
                         this.errors.push(new ChartError(
                             `${this.id}：事件的 easingLeft 和 easingRight 属性必须满足 0 <= easingLeft < easingRight <= 1，但读取到了 easingLeft=${event.easingLeft}, easingRight=${event.easingRight}。将会被替换为默认值 0 和 1。`,
-                            "ChartReadError",
+                            "ChartReadError.OutOfRange",
+                            "error",
                             this as NumberEvent | ColorEvent | TextEvent
                         ));
                     }
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：事件的 easingLeft 和 easingRight 属性必须是数字，但读取到了 easingLeft=${event.easingLeft}, easingRight=${event.easingRight}。将会被替换为默认值 0 和 1。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this as NumberEvent | ColorEvent | TextEvent
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：事件缺少 easingLeft 或 easingRight 属性。将会被设为默认值 0 和 1。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this as NumberEvent | ColorEvent | TextEvent
                 ));
             }
 
             // easingType
             if ("easingType" in event) {
-                if (isNumber(event.easingType) &&
-                    event.easingType >= 1 &&
-                    event.easingType <= 29 &&
-                    Number.isInteger(event.easingType)) {
-                    this.easingType = event.easingType as EasingType;
-                } else {
+                if (isEasingType(event.easingType)) {
+                    this.easingType = event.easingType;
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：事件的 easingType 属性必须是 1 到 29 之间的整数，但读取到了 ${event.easingType}。将会被替换为默认值 1（线性缓动）。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this as NumberEvent | ColorEvent | TextEvent
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：事件缺少 easingType 属性。将会被设为默认值 1（线性缓动）。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this as NumberEvent | ColorEvent | TextEvent
                 ));
             }
@@ -215,17 +247,21 @@ export abstract class BaseEvent<T = unknown> implements IEvent<T> {
             if ("startTime" in event) {
                 if (isArrayOfNumbers(event.startTime, 3)) {
                     this._startTime = [...event.startTime];
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：事件的 startTime 属性必须是包含3个数字的数组，但读取到了 ${JSON.stringify(event.startTime)}。将会被替换为默认值 [0, 0, 1]。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this as NumberEvent | ColorEvent | TextEvent
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：事件缺少 startTime 属性。将会被设为默认值 [0, 0, 1]。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this as NumberEvent | ColorEvent | TextEvent
                 ));
             }
@@ -234,18 +270,22 @@ export abstract class BaseEvent<T = unknown> implements IEvent<T> {
             if ("endTime" in event) {
                 if (isArrayOfNumbers(event.endTime, 3)) {
                     this._endTime = [...event.endTime];
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：事件的 endTime 属性必须是包含3个数字的数组，但读取到了 ${JSON.stringify(event.endTime)}。将会被替换为 startTime 的值。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this as NumberEvent | ColorEvent | TextEvent
                     ));
                     this._endTime = [...this._startTime];
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：事件缺少 endTime 属性。将会被设为 startTime 的值。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this as NumberEvent | ColorEvent | TextEvent
                 ));
                 this._endTime = [...this._startTime];
@@ -255,43 +295,52 @@ export abstract class BaseEvent<T = unknown> implements IEvent<T> {
             if ("linkgroup" in event) {
                 if (isNumber(event.linkgroup) && Number.isInteger(event.linkgroup)) {
                     this.linkgroup = event.linkgroup;
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：事件的 linkgroup 属性必须是整数，但读取到了 ${event.linkgroup}。将会被替换为数字 0。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this as NumberEvent | ColorEvent | TextEvent
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：事件缺少 linkgroup 属性。将会被设为数字 0。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this as NumberEvent | ColorEvent | TextEvent
                 ));
             }
 
             // isDisabled
             if ("isDisabled" in event) {
-                if (typeof event.isDisabled === 'boolean') {
+                if (typeof event.isDisabled === "boolean") {
                     this.isDisabled = event.isDisabled;
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：事件的 isDisabled 属性必须是布尔值，但读取到了 ${event.isDisabled}。将会被替换为 false。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this as NumberEvent | ColorEvent | TextEvent
                     ));
                 }
-            } else {
-                this.errors.push(new ChartError(
-                    `${this.id}：事件缺少 isDisabled 属性。将会被设为 false。`,
-                    "ChartReadError",
-                    this as NumberEvent | ColorEvent | TextEvent
-                ));
             }
-        } else {
+            else {
+                // this.errors.push(new ChartError(
+                //     `${this.id}：事件缺少 isDisabled 属性。将会被设为 false。`,
+                //     "ChartReadError.MissingProperty",
+                //     "error",
+                // ));
+            }
+        }
+        else {
             this.errors.push(new ChartError(
                 `${this.id}：事件必须是一个对象，但读取到了 ${event}。将会使用默认值。`,
-                "ChartReadError",
+                "ChartReadError.TypeError",
+                "error",
                 this as NumberEvent | ColorEvent | TextEvent
             ));
         }
@@ -301,7 +350,7 @@ export abstract class BaseEvent<T = unknown> implements IEvent<T> {
         this.cachedEndSeconds = beatsToSeconds(options.BPMList, this._endTime);
     }
 }
-export class NumberEvent extends BaseEvent<number> {
+export class NumberEvent extends AbstractEvent<number> {
     start: number = 0;
     end: number = 0;
     constructor(event: unknown, options: EventOptions) {
@@ -311,17 +360,21 @@ export class NumberEvent extends BaseEvent<number> {
             if ("start" in event) {
                 if (isNumber(event.start)) {
                     this.start = event.start;
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：${this.type}事件的 start 属性必须是数字，但读取到了 ${event.start}。将会被替换为数字 0。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：${this.type}事件缺少 start 属性。将会被设为数字 0。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this
                 ));
             }
@@ -330,30 +383,36 @@ export class NumberEvent extends BaseEvent<number> {
             if ("end" in event) {
                 if (isNumber(event.end)) {
                     this.end = event.end;
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：${this.type}事件的 end 属性必须是数字，但读取到了 ${event.end}。将会被替换为数字 0。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：${this.type}事件缺少 end 属性。将会被设为数字 0。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this
                 ));
             }
-        } else {
+        }
+        else {
             this.errors.push(new ChartError(
                 `${this.id}：${this.type}事件必须是一个对象，但读取到了 ${event}。将会使用默认值。`,
-                "ChartReadError",
+                "ChartReadError.TypeError",
+                "error",
                 this
             ));
         }
     }
 }
-export class ColorEvent extends BaseEvent<RGBcolor> {
+export class ColorEvent extends AbstractEvent<RGBcolor> {
     start: RGBcolor = [255, 255, 255];
     end: RGBcolor = [255, 255, 255];
     toObject() {
@@ -369,17 +428,21 @@ export class ColorEvent extends BaseEvent<RGBcolor> {
             if ("start" in event) {
                 if (isArrayOfNumbers(event.start, 3)) {
                     this.start = [...event.start];
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：${this.type}事件的 start 属性必须是包含3个数字的数组，但读取到了 ${JSON.stringify(event.start)}。将会被替换为默认值 [255, 255, 255]。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：${this.type}事件缺少 start 属性。将会被设为默认值 [255, 255, 255]。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this
                 ));
             }
@@ -388,30 +451,36 @@ export class ColorEvent extends BaseEvent<RGBcolor> {
             if ("end" in event) {
                 if (isArrayOfNumbers(event.end, 3)) {
                     this.end = [...event.end];
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：${this.type}事件的 end 属性必须是包含3个数字的数组，但读取到了 ${JSON.stringify(event.end)}。将会被替换为默认值 [255, 255, 255]。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：${this.type}事件缺少 end 属性。将会被设为默认值 [255, 255, 255]。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this
                 ));
             }
-        } else {
+        }
+        else {
             this.errors.push(new ChartError(
                 `${this.id}：${this.type}事件必须是一个对象，但读取到了 ${event}。将会使用默认值。`,
-                "ChartReadError",
+                "ChartReadError.TypeError",
+                "error",
                 this
             ));
         }
     }
 }
-export class TextEvent extends BaseEvent<string> {
+export class TextEvent extends AbstractEvent<string> {
     start: string = "";
     end: string = "";
     constructor(event: unknown, options: EventOptions) {
@@ -422,17 +491,21 @@ export class TextEvent extends BaseEvent<string> {
             if ("start" in event) {
                 if (isString(event.start)) {
                     this.start = event.start;
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：${this.type}事件的 start 属性必须是字符串，但读取到了 ${event.start}。将会被替换为空字符串。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：${this.type}事件缺少 start 属性。将会被设为空字符串。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this
                 ));
             }
@@ -441,24 +514,30 @@ export class TextEvent extends BaseEvent<string> {
             if ("end" in event) {
                 if (isString(event.end)) {
                     this.end = event.end;
-                } else {
+                }
+                else {
                     this.errors.push(new ChartError(
                         `${this.id}：${this.type}事件的 end 属性必须是字符串，但读取到了 ${event.end}。将会被替换为空字符串。`,
-                        "ChartReadError",
+                        "ChartReadError.TypeError",
+                        "error",
                         this
                     ));
                 }
-            } else {
+            }
+            else {
                 this.errors.push(new ChartError(
                     `${this.id}：${this.type}事件缺少 end 属性。将会被设为空字符串。`,
-                    "ChartReadError",
+                    "ChartReadError.MissingProperty",
+                    "error",
                     this
                 ));
             }
-        } else {
+        }
+        else {
             this.errors.push(new ChartError(
                 `${this.id}：${this.type}事件必须是一个对象，但读取到了 ${event}。将会使用默认值。`,
-                "ChartReadError",
+                "ChartReadError.TypeError",
+                "error",
                 this
             ));
         }
@@ -468,10 +547,25 @@ type S = {
     cachedStartSeconds: number,
     cachedEndSeconds: number,
 }
+export function getEasingFunctionOfNumberEvent(event: IEvent<number>) {
+    return event.bezier ?
+        cubicBezierEase(event.bezierPoints) :
+        (time: number) => {
+            const left = event.easingLeft;
+            const right = event.easingRight;
+            const func = easingFuncs[event.easingType];
+            const start = func(left);
+            const end = func(right);
+            const deltaX = right - left;
+            const deltaY = end - start;
+
+            return (func(time * deltaX + left) - start) / deltaY;
+        };
+}
 export function interpolateNumberEventValue(event: IEvent<number> & S, seconds: number) {
     const startSeconds = event?.cachedStartSeconds;
     const endSeconds = event?.cachedEndSeconds;
-    const { bezier, bezierPoints, start, end, easingType, easingLeft, easingRight } = event;
+    const { start, end } = event;
     if (endSeconds <= seconds) {
         return end;
     }
@@ -479,19 +573,7 @@ export function interpolateNumberEventValue(event: IEvent<number> & S, seconds: 
         const dx = endSeconds - startSeconds;
         const dy = end - start;
         const sx = seconds - startSeconds;
-        const easingFunction = bezier ?
-            cubicBezierEase(...bezierPoints) :
-            (time: number) => {
-                const left = easingLeft;
-                const right = easingRight;
-                const func = easingFuncs[easingType];
-                const start = func(left);
-                const end = func(right);
-                const deltaX = right - left;
-                const deltaY = end - start;
-
-                return (func(time * deltaX + left) - start) / deltaY;
-            }
+        const easingFunction = getEasingFunctionOfNumberEvent(event);
 
         const easingFactor = easingFunction(sx / dx);
         return start + easingFactor * dy;
@@ -517,7 +599,7 @@ export function interpolateColorEventValue(event: ColorEvent, seconds: number): 
             isDisabled: false,
         };
         return interpolateNumberEventValue(e, seconds);
-    }
+    };
     if (endSeconds <= seconds) {
         return end;
     }
@@ -533,7 +615,7 @@ export function interpolateTextEventValue(event: TextEvent, seconds: number) {
     const endSeconds = event.cachedEndSeconds;
     const { bezier, bezierPoints, start, end, easingType, easingLeft, easingRight, startTime, endTime } = event;
     if (endSeconds <= seconds) {
-        return end;
+        return end.replace("%P%", "");
     }
     else {
         if (start.startsWith(end) || end.startsWith(start)) {
@@ -557,14 +639,35 @@ export function interpolateTextEventValue(event: TextEvent, seconds: number) {
             const length = Math.round(interpolateNumberEventValue(e, seconds));
             return start.length > end.length ? start.slice(0, length) : end.slice(0, length);
         }
+        else if (start.includes("%P%") || end.includes("%P%")) {
+            const startNumber = parseFloat(start.replace("%P%", ""));
+            const endNumber = parseFloat(end.replace("%P%", ""));
+            const e = {
+                startTime,
+                endTime,
+                easingType,
+                easingLeft,
+                easingRight,
+                bezier,
+                bezierPoints: [...bezierPoints] as BezierPoints,
+                start: startNumber,
+                end: endNumber,
+                cachedStartSeconds: beatsToSeconds(event.BPMList, event.startTime),
+                cachedEndSeconds: beatsToSeconds(event.BPMList, event.endTime),
+                linkgroup: 0,
+                isDisabled: false,
+            };
+            const number = interpolateNumberEventValue(e, seconds);
+            return isInteger(startNumber) && isInteger(endNumber) ? number.toFixed(0) : number.toFixed(3);
+        }
         return start;
     }
 }
+
 /**
  * 找到开始时间不大于seconds的最大的事件。若不存在，返回null。
  */
-export function findLastEvent<T extends BaseEvent>(events: T[], seconds: number): T | null {
-
+export function findLastEvent<T extends AbstractEvent>(events: T[], seconds: number): T | null {
     // // Filter valid events and sort by cachedStartSeconds
     // const validEvents = events.filter(event => 
     //     !event.isDisabled && 
@@ -590,7 +693,8 @@ export function findLastEvent<T extends BaseEvent>(events: T[], seconds: number)
         if (validEvents[mid].cachedStartSeconds <= seconds) {
             resultIndex = mid;
             left = mid + 1;
-        } else {
+        }
+        else {
             right = mid - 1;
         }
     }

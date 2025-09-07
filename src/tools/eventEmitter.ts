@@ -16,10 +16,12 @@ export default class EventEmitter<T extends Record<keyof T, unknown[]>> {
     }
     emit<K extends keyof T>(event: K, ...args: T[K]) {
         if (this.listeners[event]) {
-            if (this.listeners[event].length == 0)
+            if (this.listeners[event].length === 0) {
                 console.error(`No listeners for ${String(event)} event`);
-            else
+            }
+            else {
                 this.listeners[event].forEach((listener) => listener(...args));
+            }
         }
     }
     destroy() {

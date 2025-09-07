@@ -10,7 +10,7 @@ export default class MediaUtils {
         bufferSource.start(0, time);
         bufferSource.onended = () => {
             bufferSource.disconnect();
-        }
+        };
         return bufferSource;
     }
     static async createAudioBuffer(this: AudioContext, arraybuffer: ArrayBuffer) {
@@ -38,12 +38,12 @@ export default class MediaUtils {
             image.onload = () => {
                 URL.revokeObjectURL(objectUrl);
                 resolve(image);
-            }
+            };
             image.onerror = (e) => {
                 URL.revokeObjectURL(objectUrl);
                 reject(e);
-            }
-        })
+            };
+        });
     }
     static createAudio(audioData: ArrayBuffer | Blob) {
         const blob = audioData instanceof Blob ? audioData : MediaUtils.arrayBufferToBlob(audioData);
@@ -54,22 +54,22 @@ export default class MediaUtils {
             audio.oncanplay = () => {
                 URL.revokeObjectURL(objectUrl);
                 resolve(audio);
-            }
+            };
             audio.onerror = (e) => {
                 URL.revokeObjectURL(objectUrl);
                 reject(e);
-            }
-        })
+            };
+        });
     }
     static createObjectURL(data: Blob | ArrayBuffer) {
         const blob = data instanceof Blob ? data : MediaUtils.arrayBufferToBlob(data);
         return new Promise<string>((resolve) => {
             const objectUrl = URL.createObjectURL(blob);
-            window.addEventListener('beforeunload', () => {
+            window.addEventListener("beforeunload", () => {
                 URL.revokeObjectURL(objectUrl);
-            })
+            });
             resolve(objectUrl);
-        })
+        });
     }
     static togglePlay(audio: HTMLAudioElement) {
         if (audio.paused) {
@@ -81,7 +81,7 @@ export default class MediaUtils {
     }
     static downloadText(text: string, fileName: string, mime = "text/plain") {
         const blob = new Blob([text], { type: mime });
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         const url = URL.createObjectURL(blob);
         a.href = url;
         a.download = fileName;

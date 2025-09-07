@@ -22,72 +22,85 @@
             </template>
         </MyInputNumber>
 
-        <ElInput
-            v-model="stateManager.cache.eventFill.code"
-            class="code-input"
-            type="textarea"
-            :rows="12"
-        />
+        <MyDialog open-text="编辑曲线轨迹代码">
+            <MyInput
+                v-model="stateManager.cache.eventFill.code"
+                class="code-input"
+                type="textarea"
+                spellcheck="false"
+                :rows="12"
+                resize="vertical"
+                @keydown.stop
+            />
+            <p>
+                代码为Javascript语言，根据时间t，返回x、y、angle三个结果，将会被自动填入moveX、moveY、rotate事件的值中。
+                t的范围为0~1，0表示曲线轨迹刚开始，1表示曲线轨迹结束。
+                你可以直接使用缓动函数，例如 OutQuad(t)。注意缓动函数每个单词的首字母都要大写。
+            </p>
+        </MyDialog>
+        <p>
+            请点击“编辑曲线轨迹代码”按钮，并输入代码，
+            点击“填充”按钮，就会自动生成事件
+        </p>
         <MyButton
             type="primary"
-            @click="catchErrorByMessage(() => globalEventEmitter.emit('FILL_EVENTS', stateManager.cache.eventFill.startTime, stateManager.cache.eventFill.endTime, stateManager.cache.eventFill.density, stateManager.cache.eventFill.code), '填充事件')"
+            @click="catchErrorByMessage(() => globalEventEmitter.emit('FILL_EVENTS'), '填充事件')"
         >
             填充
         </MyButton>
         <MyDialog open-text="不会写？点这里">
             <h3>找一个AI（例如Deepseek），复制下面的提示词，输入你想要的效果，并发送：</h3>
-            <pre>{{ prompt }}</pre>
             <MyButton
                 type="primary"
                 @click="copyText"
             >
                 复制提示词
             </MyButton>
-            <h3>AI的输出可能是这样的：</h3>
-            <pre>{{ response }}</pre>
-            <h3>仅复制中间的代码部分到文本框内，并点击“填充”按钮。</h3>
+            <pre>{{ prompt }}</pre>
+            <h3>复制AI输出的代码到文本框内，并点击“填充”按钮。</h3>
             <h3>如果生成的效果不合你的预期，也可以向AI继续提出。</h3>
         </MyDialog>
     </div>
 </template>
 <script setup lang="ts">
-import globalEventEmitter from '@/eventEmitter';
-import MyDialog from '@/myElements/MyDialog.vue';
-import MyInputBeats from '@/myElements/MyInputBeats.vue';
-import MyInputNumber from '@/myElements/MyInputNumber.vue';
-import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
-import store from '@/store';
-import { catchErrorByMessage } from '@/tools/catchError';
-import { ElInput } from 'element-plus';
-import MyButton from '@/myElements/MyButton.vue';
+import globalEventEmitter from "@/eventEmitter";
+import MyDialog from "@/myElements/MyDialog.vue";
+import MyInputBeats from "@/myElements/MyInputBeats.vue";
+import MyInputNumber from "@/myElements/MyInputNumber.vue";
+import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
+import store from "@/store";
+import { catchErrorByMessage } from "@/tools/catchError";
+import MyButton from "@/myElements/MyButton.vue";
+import MyInput from "@/myElements/MyInput.vue";
+import { easingFuncs, EasingType } from "@/models/easing";
 const props = defineProps<{
     titleTeleport: string
 }>();
 const stateManager = store.useManager("stateManager");
 const prompt = `\
-用Javascript代码实现一个动画函数，让一条直线以特定的轨迹运动。
+用Javascript代码实现一个动画，让一条直线以特定的轨迹运动。
 接收一个参数t表示时间，位于0和1之间，0表示动画刚开始，1表示动画结束。
-返回一个对象，对象包含属性x、y、angle，
-x和y分别表示控制点的X轴和Y轴的坐标。直线必定经过控制点。
+使用return语句返回一个对象，对象包含属性x、y、angle。
+x和y分别表示锚点的X轴和Y轴的坐标。直线必定经过锚点。
 屏幕上可显示的范围是x:[-675,675]，y:[-450,450]。
-angle表示角度，angle=0表示直线水平，angle=90表示直线垂直，
-angle=45表示直线两端朝向左上-右下方向，以此类推。
+angle表示角度，angle=0表示直线水平，angle增大表示直线顺时针旋转，angle是角度而非弧度。
+尽量让angle的变化连续，例如不要直接从-180跳转到180，虽然他们的方向是相同的。
+X轴正方向朝向右侧，Y轴正方向朝向上方。
 只能使用原生Javascript，不能使用第三方库。
-动画的内容是xxx（在此处描述你想生成的曲线轨迹，不要产生歧义和模棱两可的描述）`;
-const response = `\
-function 函数名(t){
-    这里是代码
-}`;
+但已经提供了一些缓动函数，它们接收一个0~1之间的参数，返回一个0~1之间的结果，可直接使用。
+可用缓动函数列表：
+${Object.keys(easingFuncs).map(key => EasingType[+key]).join(",")}
+只输出Javascript代码，不要混入任何HTML、CSS以及Typescript的类型标注等内容。
+本需求与canvas无关，请忘记关于canvas的所有内容。
+不要输出函数头和末尾的大括号，仅输出中间的代码部分即可。
+请把可以调整的参数放在代码最前面，以变量的形式定义，并解释其含义。
+动画的内容是xxx（在此处描述你想生成的曲线轨迹）`;
 function copyText() {
     navigator.clipboard.writeText(prompt);
 }
 </script>
 <style scoped>
-.code-input textarea {
-    min-height: 300px;
-}
-
-h3{
+h3 {
     margin-block: 0.8em;
 }
 </style>

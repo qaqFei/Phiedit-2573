@@ -35,6 +35,7 @@
                     该事件为color事件，用来控制判定线的颜色。<br>
                     如果判定线有贴图，控制的就是贴图的颜色。（采用正片叠底的混合模式）<br>
                     如果判定线有文字，控制的就是文字的颜色。<br>
+                    如果判定线绑定了UI，控制的就是UI的颜色。<br>
                     如果都没有，控制的就是判定线本身的颜色。<br>
                 </MyQuestionMark>
             </template>
@@ -42,20 +43,23 @@
         <MySwitch
             ref="switchBezier"
             v-model="inputEvent.bezier"
-            :active-value="1"
-            :inactive-value="0"
+            :active-value="Bezier.On"
+            :inactive-value="Bezier.Off"
             @change="updateModel('bezier'), createHistory()"
         >
-            Bezier曲线（暂不支持）
+            使用Bezier曲线
         </MySwitch>
-        <span v-if="model.bezier">
-            暂不支持Bezier曲线
-            <!-- <MyBezier
-                v-model="inputEvent.bezierPoints"
-                @change="createHistory()"
-                @input="updateModel('bezierPoints')"
-            /> -->
-        </span>
+        <MyInputBezier
+            v-if="model.bezier"
+            ref="inputBezier"
+            v-model="inputEvent.bezierPoints"
+            @change="createHistory()"
+            @input="updateModel('bezierPoints')"
+        >
+            <template #prepend>
+                控制点坐标
+            </template>
+        </MyInputBezier>
         <MySelectEasing
             v-else
             ref="selectEasing"
@@ -70,7 +74,7 @@
             禁用
         </MySwitch>
         <MyGridContainer :columns="3">
-            <ElTooltip>
+            <ElTooltip placement="top">
                 <template #default>
                     <MyButton @click="reverse">
                         反色
@@ -81,7 +85,7 @@
                     快捷键：Alt + A<br>
                 </template>
             </ElTooltip>
-            <ElTooltip>
+            <ElTooltip placement="top">
                 <template #default>
                     <MyButton @click="swap">
                         交换
@@ -91,7 +95,8 @@
                     把事件的开始值和结束值交换<br>
                     快捷键：Alt + S<br>
                 </template>
-            </ElTooltip><ElTooltip>
+            </ElTooltip>
+            <ElTooltip placement="top">
                 <template #default>
                     <MyButton @click="stick">
                         粘合
@@ -102,33 +107,45 @@
                     快捷键：Alt + D<br>
                 </template>
             </ElTooltip>
+            <ElTooltip placement="bottom">
+                <template #default>
+                    <MyButton @click="random">
+                        随机
+                    </MyButton>
+                </template>
+                <template #content>
+                    把这个事件的起始值和结束值都设为随机的颜色<br>
+                    快捷键：Alt + D<br>
+                </template>
+            </ElTooltip>
         </MyGridContainer>
-        <h3>缓动曲线截取</h3>
-        <ElSlider
-            v-model="inputEvent.easingLeftRight"
-            range
-            :min="0"
-            :max="1"
-            :step="0.01"
-            @change="createHistory()"
-            @input="updateModel('easingLeft', 'easingRight')"
+        <MyEasing
+            v-model="inputEvent"
+            :zoom-out="1.25"
+            @bezier-input="updateModel('bezierPoints'), inputBezier?.updateShowedValue()"
+            @bezier-change="createHistory()"
+            @easing-lr-input="updateModel('easingLeft', 'easingRight')"
+            @easing-lr-change="createHistory()"
         />
     </div>
 </template>
 <script setup lang="ts">
-import MyButton from '@/myElements/MyButton.vue';
-import { IEvent, ColorEvent } from "../models/event";
+import MyButton from "@/myElements/MyButton.vue";
+import { IEvent, ColorEvent, Bezier } from "../models/event";
 import MyInput from "../myElements/MyInput.vue";
 import MySwitch from "../myElements/MySwitch.vue";
 import MySelectEasing from "@/myElements/MySelectEasing.vue";
-import { addBeats, beatsCompare, formatBeats, isEqualBeats, isLessThanOrEqualBeats, parseBeats, validateBeats } from "@/models/beats";
+import { addBeats, beatsCompare, formatBeats, isEqualBeats, isLessThanOrEqualBeats, parseBeats, makeSureBeatsValid } from "@/models/beats";
 import { onBeforeUnmount, onMounted, reactive, useTemplateRef } from "vue";
 import { Ref, watch } from "vue";
 import globalEventEmitter from "@/eventEmitter";
 import store from "@/store";
-import { formatRGBcolor, isEqualRGBcolors, parseRGBcolor, RGBcolor } from '@/tools/color';
-import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
-import MyGridContainer from '@/myElements/MyGridContainer.vue';
+import { formatRGBcolor, isEqualRGBcolors, parseRGBcolor, RGBcolor } from "@/tools/color";
+import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
+import MyGridContainer from "@/myElements/MyGridContainer.vue";
+import MathUtils from "@/tools/mathUtils";
+import MyEasing from "@/myElements/MyEasing.vue";
+import MyInputBezier from "@/myElements/MyInputBezier.vue";
 const model = defineModel<ColorEvent>({
     required: true,
 }) as Ref<ColorEvent>;
@@ -140,6 +157,7 @@ const inputStartEnd = useTemplateRef("inputStartEnd");
 const switchBezier = useTemplateRef("switchBezier");
 const selectEasing = useTemplateRef("selectEasing");
 const switchDisabled = useTemplateRef("switchDisabled");
+const inputBezier = useTemplateRef("inputBezier");
 interface EventExtends {
     startEndTime: string;
     startEnd: string;
@@ -158,6 +176,7 @@ const attributes = [
     "easingRight"
 ] as const;
 const historyManager = store.useManager("historyManager");
+
 // const mouseManager = store.useManager("mouseManager");
 watch(model, () => {
     for (const attr of attributes) {
@@ -169,6 +188,7 @@ watch(model, () => {
     switchBezier.value?.updateShowedValue();
     selectEasing.value?.updateShowedValue();
     switchDisabled.value?.updateShowedValue();
+    inputBezier.value?.updateShowedValue();
 });
 const inputEvent: IEvent<RGBcolor> & EventExtends = reactive({
     startTime: model.value.startTime,
@@ -187,19 +207,21 @@ const inputEvent: IEvent<RGBcolor> & EventExtends = reactive({
         if (this.startTime === this.endTime) {
             return formatBeats(this.startTime);
         }
+
         // 否则返回开始时间和结束时间的组合
         return formatBeats(this.startTime) + seperator + formatBeats(this.endTime);
     },
     set startEndTime(value: string) {
-        const [start, end] = value.split(seperator);
+        const [start, end] = value.trim().split(seperator);
         if (!start) return;
-        this.startTime = validateBeats(parseBeats(start));
+        this.startTime = makeSureBeatsValid(parseBeats(start));
+
         // 如果只输入了一个时间，则将结束时间设置为开始时间加1拍
         if (!end) {
             this.endTime = addBeats(this.startTime, [1, 0, 1]);
             return;
         }
-        this.endTime = validateBeats(parseBeats(end));
+        this.endTime = makeSureBeatsValid(parseBeats(end));
     },
     get startEnd() {
         // 如果开始数值和结束数值相同，返回这个相同的数值
@@ -209,10 +231,11 @@ const inputEvent: IEvent<RGBcolor> & EventExtends = reactive({
         return formatRGBcolor(this.start) + seperator + formatRGBcolor(this.end);
     },
     set startEnd(value: string) {
-        const [start, end] = value.split(seperator);
+        const [start, end] = value.trim().split(seperator);
         if (!start) return;
         const startValue = parseRGBcolor(start);
-        if (startValue == null) return;
+        if (startValue === null) return;
+
         // 如果只输入了一个数值，则将结束数值设置为开始数值
         if (!end) {
             this.start = startValue;
@@ -220,7 +243,7 @@ const inputEvent: IEvent<RGBcolor> & EventExtends = reactive({
             return;
         }
         const endValue = parseRGBcolor(end);
-        if (endValue == null) return;
+        if (endValue === null) return;
         this.start = startValue;
         this.end = endValue;
     },
@@ -243,16 +266,17 @@ const oldValues = {
     easingLeft: model.value.easingLeft,
     easingRight: model.value.easingRight
 };
+
 /** 检查属性是否被修改过，并记录到历史记录中 */
 function createHistory() {
     // 遍历新值和旧值，找到不一样的属性
     for (const attr of attributes) {
-        if (attr == "start" || attr == "end") {
+        if (attr === "start" || attr === "end") {
             if (isEqualRGBcolors(inputEvent[attr], oldValues[attr])) {
                 continue;
             }
         }
-        if (attr == "startTime" || attr == "endTime") {
+        if (attr === "startTime" || attr === "endTime") {
             if (isEqualBeats(inputEvent[attr], oldValues[attr])) {
                 continue;
             }
@@ -262,6 +286,7 @@ function createHistory() {
             historyManager.recordModifyEvent(model.value.id, attr, inputEvent[attr], oldValues[attr]);
         }
     }
+
     // 把旧值更新，以免重复记录
     for (const attr of attributes) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -278,12 +303,14 @@ function updateModel<K extends keyof IEvent<number>>(...attrNames: K[]) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (model.value[attrName] as any) = inputEvent[attrName];
     }
+
     // historyManager.ungroup();
 }
 onMounted(() => {
     globalEventEmitter.on("REVERSE", reverse);
     globalEventEmitter.on("SWAP", swap);
     globalEventEmitter.on("STICK", stick);
+    globalEventEmitter.on("RANDOM", random);
 });
 onBeforeUnmount(() => {
     try {
@@ -295,6 +322,7 @@ onBeforeUnmount(() => {
     globalEventEmitter.off("REVERSE", reverse);
     globalEventEmitter.off("SWAP", swap);
     globalEventEmitter.off("STICK", stick);
+    globalEventEmitter.off("RANDOM", random);
 });
 function reverse() {
     for (let i = 0; i < 3; i++) {
@@ -303,17 +331,20 @@ function reverse() {
     }
     updateModel("start", "end");
     createHistory();
+    inputStartEnd.value?.updateShowedValue();
 }
 function swap() {
     [inputEvent.start, inputEvent.end] = [inputEvent.end, inputEvent.start];
     updateModel("start", "end");
     createHistory();
+    inputStartEnd.value?.updateShowedValue();
 }
 function stick() {
     const judgeLine = store.getJudgeLineById(model.value.judgeLineNumber);
     const eventLayer = judgeLine.getEventLayerById(model.value.eventLayerId);
     const events = eventLayer.getEventsByType(model.value.type) as ColorEvent[];
     events.sort((event1, event2) => beatsCompare(event1.endTime, event2.endTime));
+
     // 找到结束时间小于model的开始时间的最大的事件
     let event = undefined;
     for (let i = events.length - 1; i >= 0; i--) {
@@ -323,8 +354,20 @@ function stick() {
         }
     }
     if (!event) {
-        throw new Error("当前事件前面没有事件，无法粘合")
+        throw new Error("当前事件前面没有事件，无法粘合");
     }
-    model.value.start = event.end;
+    inputEvent.start = event.end;
+    updateModel("start", "end");
+    createHistory();
+    inputStartEnd.value?.updateShowedValue();
+}
+function random() {
+    const randomStart = MathUtils.randomNumbers(3, undefined, 0, 255) as RGBcolor;
+    const randomEnd = MathUtils.randomNumbers(3, undefined, 0, 255) as RGBcolor;
+    inputEvent.start = randomStart;
+    inputEvent.end = randomEnd;
+    updateModel("start", "end");
+    createHistory();
+    inputStartEnd.value?.updateShowedValue();
 }
 </script>

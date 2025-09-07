@@ -14,28 +14,27 @@
         </MyInputNumber>
         <MyButton
             type="primary"
-            @click="catchErrorByMessage(() => globalEventEmitter.emit('FILL_NOTES', stateManager.cache.noteFill.type, stateManager.cache.noteFill.easingType, stateManager.cache.noteFill.density), '填充曲线音符')"
+            @click="() => globalEventEmitter.emit('FILL_NOTES')"
         >
             填充
         </MyButton>
     </div>
 </template>
 <script setup lang="ts">
-import globalEventEmitter from '@/eventEmitter';
-import { Note } from '@/models/note';
-import MyInputNumber from '@/myElements/MyInputNumber.vue';
-import MySelectEasing from '@/myElements/MySelectEasing.vue';
-import MySelectNoteType from '@/myElements/MySelectNoteType.vue';
-import store from '@/store';
-import { catchErrorByMessage } from '@/tools/catchError';
-import MyButton from '@/myElements/MyButton.vue';
-import { computed } from 'vue';
+import globalEventEmitter from "@/eventEmitter";
+import { Note } from "@/models/note";
+import MyInputNumber from "@/myElements/MyInputNumber.vue";
+import MySelectEasing from "@/myElements/MySelectEasing.vue";
+import MySelectNoteType from "@/myElements/MySelectNoteType.vue";
+import store from "@/store";
+import MyButton from "@/myElements/MyButton.vue";
+import { computed } from "vue";
 const props = defineProps<{
     titleTeleport: string
 }>();
-const stateManager = store.useManager('stateManager');
-const selectionManager = store.useManager('selectionManager');
+const stateManager = store.useManager("stateManager");
+const selectionManager = store.useManager("selectionManager");
 const noteCount = computed(() => {
     return selectionManager.selectedElements.filter(e => e instanceof Note).length;
-})
+});
 </script>

@@ -32,7 +32,7 @@
                     v-model="name"
                     placeholder="请输入谱面名称"
                 />
-
+                <em>注意：在点击“确定”添加谱面之后，请先进入谱面，填写好BPM，调整好偏移后再开始写谱！</em>
                 <MyButton
                     type="success"
                     @click="catchErrorByMessage(addChart, '添加谱面')"
@@ -74,14 +74,14 @@
     </div>
 </template>
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
-import { ElCard, ElHeader, ElInput } from 'element-plus';
-import MyButton from '@/myElements/MyButton.vue';
-import { inject, onErrorCaptured, ref } from 'vue';
-import MediaUtils from '@/tools/mediaUtils';
-import MyDialog from '@/myElements/MyDialog.vue';
-import { catchErrorByMessage } from '@/tools/catchError';
-import MyGridContainer from '@/myElements/MyGridContainer.vue';
+import { useRouter } from "vue-router";
+import { ElCard, ElHeader, ElInput } from "element-plus";
+import MyButton from "@/myElements/MyButton.vue";
+import { inject, onErrorCaptured, ref } from "vue";
+import MediaUtils from "@/tools/mediaUtils";
+import MyDialog from "@/myElements/MyDialog.vue";
+import { catchErrorByMessage } from "@/tools/catchError";
+import MyGridContainer from "@/myElements/MyGridContainer.vue";
 
 const router = useRouter();
 const musicFileUrl = ref<string | undefined>();
@@ -114,7 +114,7 @@ loadEnd();
 async function loadMusic() {
     const filePaths = await window.electronAPI.showOpenMusicDialog();
     if (!filePaths) {
-        throw new Error('操作已取消');
+        throw new Error("操作已取消");
     }
     if (filePaths.length === 0) {
         throw new Error("未选择音乐文件");
@@ -123,9 +123,9 @@ async function loadMusic() {
 }
 
 async function loadBackground() {
-    const filePaths = await window.electronAPI.showOpenBackgroundDialog();
+    const filePaths = await window.electronAPI.showOpenImageDialog();
     if (!filePaths) {
-        throw new Error('操作已取消');
+        throw new Error("操作已取消");
     }
     if (filePaths.length === 0) {
         throw new Error("未选择背景文件");
@@ -137,7 +137,7 @@ async function loadBackground() {
 async function loadChart() {
     const filePaths = await window.electronAPI.showOpenChartDialog();
     if (!filePaths) {
-        throw new Error('操作已取消');
+        throw new Error("操作已取消");
     }
     if (filePaths.length === 0) {
         throw new Error("未选择谱面文件");
@@ -163,10 +163,11 @@ function imageOnLoad(chartId: string) {
 }
 
 onErrorCaptured((err) => {
-    console.error('组件初始化错误:', err)
+    console.error("组件初始化错误:", err);
+
     // 这里可以添加用户友好的错误提示
-    return false // 阻止错误继续传播
-})
+    return false; 
+});
 </script>
 <style>
 .header {

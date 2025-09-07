@@ -1,214 +1,230 @@
 <template>
     <ElContainer>
         <ElHeader id="header">
-            <div class="audio-player">
-                <audio
-                    ref="audioRef"
-                    :src="store.chartPackageRef.value?.musicSrc"
-                />
-                <template v-if="audioRef">
-                    <ElIcon
-                        class="play-icon"
-                        size="30"
-                        @click="MediaUtils.togglePlay(audioRef)"
+            <ElScrollbar
+                id="header-inner"
+                @wheel.stop
+            >
+                <div class="audio-player">
+                    <audio
+                        ref="audioRef"
+                        :src="store.chartPackageRef.value?.musicSrc"
+                    />
+                    <template v-if="audioRef">
+                        <ElIcon
+                            class="play-icon"
+                            size="30"
+                            @click="MediaUtils.togglePlay(audioRef)"
+                        >
+                            <VideoPlay v-if="!audioIsPlaying" />
+                            <VideoPause v-else />
+                        </ElIcon>
+                        <p>
+                            {{ Math.floor(time / 60) }}:{{ Math.floor(time % 60).toString().padStart(2, "0") }}
+                        </p>
+                        <ElSlider
+                            v-model="time"
+                            :min="0"
+                            :max="audioRef.duration"
+                            :step="0.01"
+                            :format-tooltip="(seconds) => {
+                                const min = Math.floor(seconds / 60)
+                                    .toString()
+                                    .padStart(2, '0');
+                                const sec = Math.round(seconds % 60)
+                                    .toString()
+                                    .padStart(2, '0');
+                                return `${min}:${sec}`;
+                            }"
+                            @input="
+                                audioRef.pause(),
+                                (audioRef.currentTime = typeof time == 'number' ? time : time[0])"
+                        />
+                    </template>
+                </div>
+                <ElRadioGroup
+                    v-if="resourcePackageRef"
+                    v-model="stateManager.state.currentNoteType"
+                    class="note-type-select"
+                >
+                    <ElRadioButton
+                        class="note-type-option note-type-tap"
+                        :value="NoteType.Tap"
                     >
-                        <VideoPlay v-if="!audioIsPlaying" />
-                        <VideoPause v-else />
-                    </ElIcon>
-                    <p>
-                        {{ Math.floor(time / 60) }}:{{ Math.floor(time % 60).toString().padStart(2, "0") }}
-                    </p>
-                    <ElSlider
-                        v-model="time"
-                        :min="0"
-                        :max="audioRef.duration"
-                        :step="0.01"
-                        :format-tooltip="(seconds) => {
-                            const min = Math.floor(seconds / 60)
-                                .toString()
-                                .padStart(2, '0');
-                            const sec = Math.round(seconds % 60)
-                                .toString()
-                                .padStart(2, '0');
-                            return `${min}:${sec}`;
+                        <MyImage
+                            :image="resourcePackageRef.tap"
+                            :width="80"
+                            :height="30"
+                            shadow
+                        />
+                        <p>Tap（Q）</p>
+                    </ElRadioButton>
+                    <ElRadioButton
+                        class="note-type-option note-type-drag"
+                        :value="NoteType.Drag"
+                    >
+                        <MyImage
+                            :image="resourcePackageRef.drag"
+                            :width="80"
+                            :height="30"
+                            shadow
+                        />
+                        <p>Drag（W）</p>
+                    </ElRadioButton>
+                    <ElRadioButton
+                        class="note-type-option note-type-flick"
+                        :value="NoteType.Flick"
+                    >
+                        <MyImage
+                            :image="resourcePackageRef.flick"
+                            :width="80"
+                            :height="30"
+                            shadow
+                        />
+                        <p>Flick（E）</p>
+                    </ElRadioButton>
+                    <ElRadioButton
+                        class="note-type-option note-type-hold"
+                        :value="NoteType.Hold"
+                    >
+                        <MyImage
+                            :image="resourcePackageRef.hold"
+                            rotate="anti-clockwise"
+                            :width="80"
+                            :height="30"
+                            shadow
+                        />
+                        <p>Hold（R）</p>
+                    </ElRadioButton>
+                </ElRadioGroup>
+                <p class="info">
+                    <span
+                        :style="{
+                            color: fpsColor,
+                            display: 'block',
+                            whiteSpace: 'nowrap',
                         }"
-                        @input="
-                            audioRef.pause(),
-                            (audioRef.currentTime = typeof time == 'number' ? time : time[0])"
-                    />
-                </template>
-            </div>
-            <ElRadioGroup
-                v-if="resourcePackageRef"
-                v-model="stateManager.state.currentNoteType"
-                class="note-type-select"
-            >
-                <ElRadioButton
-                    class="note-type-option note-type-tap"
-                    :value="NoteType.Tap"
+                        useless-attribute
+                    >
+                        FPS: {{ fps.toFixed(2) }}
+                    </span>
+                    <span v-show="mouseIsInCanvas">
+                        ({{ mouseX.toFixed(0) }}, {{ mouseY.toFixed(0) }})
+                    </span>
+                </p>
+                <MySelect
+                    v-if="audioRef"
+                    v-model="audioRef.playbackRate"
+                    class="speed-select"
+                    :options="[
+                        {
+                            label: '1.0x',
+                            value: 1,
+                            text: '1.0x',
+                        },
+                        {
+                            label: '0.5x',
+                            value: 0.5,
+                            text: '0.5x',
+                        },
+                        {
+                            label: '0.25x',
+                            value: 0.25,
+                            text: '0.25x',
+                        },
+                        {
+                            label: '0.125x',
+                            value: 0.125,
+                            text: '0.125x',
+                        },
+                        {
+                            label: '0.0x',
+                            value: 0,
+                            text: '0.0x',
+                        },
+                        {
+                            label: '1.5x',
+                            value: 1.5,
+                            text: '1.5x',
+                        },
+                        {
+                            label: '2.0x',
+                            value: 2,
+                            text: '2.0x',
+                        },
+                        {
+                            label: '3.0x',
+                            value: 3,
+                            text: '3.0x',
+                        },
+                    ]"
                 >
-                    <MyImage
-                        :image="resourcePackageRef.tap"
-                        :width="80"
-                        :height="30"
-                        shadow
-                    />
-                    <p>Tap（Q）</p>
-                </ElRadioButton>
-                <ElRadioButton
-                    class="note-type-option note-type-drag"
-                    :value="NoteType.Drag"
+                    倍速
+                </MySelect>
+                <MyInputNumber
+                    v-model="stateManager.state.horizonalLineCount"
+                    class="horizontal-input"
+                    :min="1"
+                    :max="64"
                 >
-                    <MyImage
-                        :image="resourcePackageRef.drag"
-                        :width="80"
-                        :height="30"
-                        shadow
-                    />
-                    <p>Drag（W）</p>
-                </ElRadioButton>
-                <ElRadioButton
-                    class="note-type-option note-type-flick"
-                    :value="NoteType.Flick"
+                    <template #prepend>
+                        横线数
+                        <MyQuestionMark>
+                            一拍内有多少条横线。在写一些奇怪的节奏时可能需要临时修改。<br>
+                            假如a分音符为一拍，横线数为b，则每个格子代表（a×b）分音。<br>
+                        </MyQuestionMark>
+                    </template>
+                </MyInputNumber>
+                <MyInputNumber
+                    v-model="stateManager.state.verticalLineCount"
+                    class="vertical-input"
+                    :min="2"
+                    :max="100"
                 >
-                    <MyImage
-                        :image="resourcePackageRef.flick"
-                        :width="80"
-                        :height="30"
-                        shadow
-                    />
-                    <p>Flick（E）</p>
-                </ElRadioButton>
-                <ElRadioButton
-                    class="note-type-option note-type-hold"
-                    :value="NoteType.Hold"
-                >
-                    <MyImage
-                        :image="resourcePackageRef.hold"
-                        rotate="anti-clockwise"
-                        :width="80"
-                        :height="30"
-                        shadow
-                    />
-                    <p>Hold（R）</p>
-                </ElRadioButton>
-            </ElRadioGroup>
-            <span
-                :style="{
-                    color: fpsColor,
-                    display: 'block',
-                    whiteSpace: 'nowrap',
-                }"
-                class="fps"
-            >
-                FPS: {{ fps.toFixed(2) }}
-            </span>
-            <MySelect
-                v-if="audioRef"
-                v-model="audioRef.playbackRate"
-                class="speed-select"
-                :options="[
-                    {
-                        label: '播放速度：1.0x',
-                        value: 1,
-                        text: '1.0x',
-                    },
-                    {
-                        label: '播放速度：0.5x',
-                        value: 0.5,
-                        text: '0.5x',
-                    },
-                    {
-                        label: '播放速度：0.25x',
-                        value: 0.25,
-                        text: '0.25x',
-                    },
-                    {
-                        label: '播放速度：0.125x',
-                        value: 0.125,
-                        text: '0.125x',
-                    },
-                    {
-                        label: '播放速度：0.0x',
-                        value: 0,
-                        text: '0.0x',
-                    },
-                    {
-                        label: '播放速度：1.5x',
-                        value: 1.5,
-                        text: '1.5x',
-                    },
-                    {
-                        label: '播放速度：2.0x',
-                        value: 2,
-                        text: '2.0x',
-                    },
-                    {
-                        label: '播放速度：3.0x',
-                        value: 3,
-                        text: '3.0x',
-                    },
-                ]"
-            />
-            <MyInputNumber
-                v-model="stateManager.state.horizonalLineCount"
-                class="horizontal-input"
-                :min="1"
-                :max="64"
-            >
-                <template #prepend>
-                    横线数
+                    <template #prepend>
+                        竖线数
+                        <MyQuestionMark>
+                            左边的音符编辑区域内有多少条竖线。用于让排键更规整。<br>
+                            建议调为19或21。如果要取消竖线，请设为0。取消竖线后你的排键可能会很乱。<br>
+                        </MyQuestionMark>
+                    </template>
+                </MyInputNumber>
+                <p class="event-layer-hint-text">
+                    点击右侧按钮切换事件层级
                     <MyQuestionMark>
-                        一拍内有多少条横线。在写一些奇怪的节奏时可能会用到。<br>
-                        假如四分音符为一拍，则每个格子代表（4×横线数）分音。<br>
-                        若横线数为4，则每个格子为16分音；<br>
-                        若横线数为6，则每个格子为24分音；<br>
-                        若横线数为8，则每个格子为32分音。<br>
+                        事件层级是用来叠加不同的事件的，例如：<br>
+                        在0号事件层上写绕定点的圆周运动，1号事件层上写平移运动，<br>
+                        则实际效果会显示为判定线一边旋转一边平移。<br>
+                        内部实现逻辑为：把每个事件层级的事件值加一起作为最终事件值。<br>
+                        <br>
+                        上述说明针对的是普通事件层级，还有一层特殊事件层级。<br>
+                        特殊事件层级也被称为故事板，是用来写出一些比较高级的功能的。<br>
                     </MyQuestionMark>
-                </template>
-            </MyInputNumber>
-            <MyInputNumber
-                v-model="stateManager.state.verticalLineCount"
-                class="vertical-input"
-                :min="2"
-                :max="100"
-            >
-                <template #prepend>
-                    竖线数
-                    <MyQuestionMark>
-                        左边的音符编辑区域内有多少条竖线。用于让排键更规整。<br>
-                        建议调为19或21。如果要取消竖线，请设为0。取消竖线后你的排键可能会很乱。<br>
-                    </MyQuestionMark>
-                </template>
-            </MyInputNumber>
-            <p class="text">
-                COMBO: {{ combo }},
-                SCORE: {{ round(score).toString().padStart(7, '0') }}<br>
-            </p>
-            <MyGridContainer
-                class="event-layer-select"
-                :columns="5"
-                :gap="5"
-            >
-                <MyButton
-                    v-for="i in min([stateManager.eventLayersCount, 4])"
-                    :key="i - 1 + (u ? 0 : 0)"
-                    type="primary"
-                    :plain="i - 1 != parseInt(stateManager.state.currentEventLayerId)"
-                    @click="stateManager.state.currentEventLayerId = (i - 1).toString(), update()"
+                </p>
+                <MyGridContainer
+                    class="event-layer-select"
+                    :columns="5"
+                    :gap="5"
                 >
-                    {{ i - 1 }}
-                </MyButton>
-                <!-- <ElTooltip>
+                    <MyButton
+                        v-for="i in min([stateManager.eventLayersCount, 4])"
+                        :key="i - 1 + (u ? 0 : 0)"
+                        type="primary"
+                        :plain="i - 1 != parseInt(stateManager.state.currentEventLayerId)"
+                        @click="stateManager.state.currentEventLayerId = (i - 1).toString(), update()"
+                    >
+                        {{ i - 1 }}
+                    </MyButton>
+                    <!-- <ElTooltip>
                     <template #default> -->
-                <MyButton
-                    type="warning"
-                    :plain="stateManager.state.currentEventLayerId != 'X'"
-                    @click="stateManager.state.currentEventLayerId = 'X', update()"
-                >
-                    特殊
-                </MyButton>
-                <!-- </template>
+                    <MyButton
+                        type="warning"
+                        :plain="stateManager.state.currentEventLayerId != 'X'"
+                        @click="stateManager.state.currentEventLayerId = 'X', update()"
+                    >
+                        特殊
+                    </MyButton>
+                    <!-- </template>
                     <template #content>
                         特殊层级的事件与普通层级不同：<br>
                         普通层级有4层，特殊层级只有一层<br>
@@ -224,31 +240,35 @@
                         text控制判定线显示的文字<br>
                     </template>
                 </ElTooltip> -->
-                <!-- <MyButton
+                    <!-- <MyButton
                     type="success"
                     @click="stateManager.currentJudgeLine.addEventLayer(), update()"
                 >
                     +
                 </MyButton> -->
-            </MyGridContainer>
-            <MyInputNumber
-                v-model="chart.META.offset"
-                class="offset-input"
-            >
-                <template #prepend>
-                    偏移
-                    <MyQuestionMark>
-                        谱面的偏移量，单位为毫秒。<br>
-                        正数表示谱面比音乐延后，负数表示谱面比音乐提前。<br>
-                        建议控制在-500~500之间。<br>
-                    </MyQuestionMark>
-                </template>
-            </MyInputNumber>
+                </MyGridContainer>
+                <MyInputNumber
+                    v-model="chart.META.offset"
+                    class="offset-input"
+                >
+                    <template #prepend>
+                        偏移
+                        <MyQuestionMark>
+                            谱面的偏移量，单位为毫秒。<br>
+                            正数表示谱面比音乐延后，负数表示谱面比音乐提前。<br>
+                            建议控制在-500~500之间。<br>
+                        </MyQuestionMark>
+                    </template>
+                </MyInputNumber>
+            </ElScrollbar>
         </ElHeader>
-        <ElAside id="left">
+        <ElAside
+            id="left"
+            @wheel.stop
+        >
             <div
                 v-if="selectionManager.selectedElements.length == 0"
-                class="left-inner"
+                class="left-inner default-panel"
                 style="justify-content: space-between;"
             >
                 <div style="display: flex;flex-direction: column;gap: 10px;">
@@ -260,11 +280,11 @@
                     >
                         保存谱面
                     </MyButton>
-                    <ElTooltip>
+                    <ElTooltip placement="right">
                         <template #default>
                             <MyButton
                                 type="primary"
-                                @click="handleExport"
+                                @click="catchErrorByMessage(handleExport, '导出')"
                             >
                                 导出谱面
                             </MyButton>
@@ -272,13 +292,24 @@
                         <template #content>
                             <em>导出的谱面有bug，无法直接导入进Re:PhiEdit，请按以下步骤操作</em><br>
                             导出后请把文件的后缀名pez改为zip并解压缩到一个文件夹中，<br>
-                            打开你的<em>Re:PhiEdit软件</em>，点击“添加谱面”，选择文件夹中的音乐和曲绘文件，<br>
+                            打开你的Re:PhiEdit，点击“添加谱面”，选择文件夹中的音乐和曲绘文件，<br>
                             并进入谱面，点击左上角的齿轮按钮，点击“导入谱面”，选择文件夹中的json文件，<br>
                             加载完成后按Ctrl+S保存，然后点“退出谱面”，再点击“导出谱面”，<br>
-                            并在你的<em>Re:PhiEdit软件</em>的安装目录中找到Resources文件夹，把导出的谱面文件拖到桌面上，方可正常使用。<br>
-                            <em>注意，我说的是Re:PhiEdit，不是本软件！请在bilibili上搜索Re:PhiEdit以获取该软件！</em>
+                            导出完毕后，方可正常使用。<br>
                         </template>
                     </ElTooltip>
+                    <MyButton
+                        type="primary"
+                        @click="catchErrorByMessage(addTextures, '添加判定线贴图')"
+                    >
+                        添加判定线贴图
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="catchErrorByMessage(openChartFolder, '打开谱面文件夹')"
+                    >
+                        打开谱面文件夹
+                    </MyButton>
                     <!-- <p style="overflow-y: auto;">
                         A和[：切换到上一条判定线<br>
                         D和]：切换到下一条判定线<br>
@@ -341,155 +372,160 @@
                 :height="900"
             />
         </ElMain>
-        <ElAside id="right">
-            <ElScrollbar @wheel.stop>
-                <div
-                    v-if="stateManager.state.right == RightPanelState.Default"
-                    class="right-inner"
+        <ElAside
+            id="right"
+            @wheel.stop
+        >
+            <div
+                v-if="stateManager.state.right == RightPanelState.Default"
+                class="right-inner default-panel"
+            >
+                <MyGridContainer
+                    :columns="2"
+                    :gap="10"
                 >
-                    <MyGridContainer :columns="2">
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.Settings"
-                        >
-                            设置
-                        </MyButton>
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.BPMList"
-                        >
-                            BPM编辑
-                        </MyButton>
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.Meta"
-                        >
-                            谱面基本信息
-                        </MyButton>
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.JudgeLine"
-                        >
-                            判定线编辑
-                        </MyButton>
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.History"
-                        >
-                            历史记录
-                        </MyButton>
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.Clipboard"
-                        >
-                            剪贴板管理
-                        </MyButton>
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.NoteFill"
-                        >
-                            填充曲线音符
-                        </MyButton>
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.EventFill"
-                        >
-                            生成曲线轨迹
-                        </MyButton>
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.Calculator"
-                        >
-                            计算器
-                        </MyButton>
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.FastBind"
-                        >
-                            快速绑线
-                        </MyButton>
-                        <MyButton
-                            type="primary"
-                            @click="stateManager.state.right = RightPanelState.Error"
-                        >
-                            谱面纠错
-                        </MyButton>
-                    </MyGridContainer>
-                    <h3>
-                        快速切换判定线
-                    </h3>
-                    <MyGridContainer
-                        :columns="stateManager.judgeLinesCount < 100 ? 5 : 4"
-                        :gap="5"
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.Settings"
                     >
-                        <MyButton
-                            v-for="i in stateManager.judgeLinesCount"
-                            :key="i - 1 + (u ? 0 : 0)"
-                            :type="(['primary', 'warning', 'danger'] as const)[Math.floor((i - 1) / 10) % 3]"
-                            :plain="i - 1 != stateManager.state.currentJudgeLineNumber"
-                            @click="stateManager.state.currentJudgeLineNumber = i - 1, update()"
-                        >
-                            {{ i - 1 }}
-                        </MyButton>
-                        <MyButton
-                            type="success"
-                            @click="chart.addNewJudgeLine(), update()"
-                        >
-                            +
-                        </MyButton>
-                    </MyGridContainer>
-                </div>
-                <template v-else>
-                    <MyBackHeader
-                        class="title-right"
-                        @back="stateManager.state.right = RightPanelState.Default"
-                    />
-                    <BPMListPanel
-                        v-if="stateManager.state.right == RightPanelState.BPMList"
-                        title-teleport=".title-right"
-                    />
-                    <ChartMetaPanel
-                        v-else-if="stateManager.state.right == RightPanelState.Meta"
-                        title-teleport=".title-right"
-                    />
-                    <JudgeLinePanel
-                        v-else-if="stateManager.state.right == RightPanelState.JudgeLine"
-                        title-teleport=".title-right"
-                    />
-                    <SettingsPanel
-                        v-else-if="stateManager.state.right == RightPanelState.Settings"
-                        title-teleport=".title-right"
-                    />
-                    <HistoryPanel
-                        v-else-if="stateManager.state.right == RightPanelState.History"
-                        title-teleport=".title-right"
-                    />
-                    <ClipboardPanel
-                        v-else-if="stateManager.state.right == RightPanelState.Clipboard"
-                        title-teleport=".title-right"
-                    />
-                    <CalculatorPanel
-                        v-else-if="stateManager.state.right == RightPanelState.Calculator"
-                        title-teleport=".title-right"
-                    />
-                    <NoteFillPanel
-                        v-else-if="stateManager.state.right == RightPanelState.NoteFill"
-                        title-teleport=".title-right"
-                    />
-                    <EventFillPanel
-                        v-else-if="stateManager.state.right == RightPanelState.EventFill"
-                        title-teleport=".title-right"
-                    />
-                    <FastBindPanel
-                        v-else-if="stateManager.state.right == RightPanelState.FastBind"
-                        title-teleport=".title-right"
-                    />
-                    <ErrorPanel
-                        v-else-if="stateManager.state.right == RightPanelState.Error"
-                        title-teleport=".title-right"
-                    />
-                </template>
-            </ElScrollbar>
+                        设置
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.BPMList"
+                    >
+                        BPM编辑
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.Meta"
+                    >
+                        谱面基本信息
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.JudgeLine"
+                    >
+                        判定线编辑
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.History"
+                    >
+                        历史记录
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.Clipboard"
+                    >
+                        剪贴板管理
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.NoteFill"
+                    >
+                        填充曲线音符
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.EventFill"
+                    >
+                        生成曲线轨迹
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.Calculator"
+                    >
+                        计算器
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.FastBind"
+                    >
+                        快速绑线
+                    </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.Error"
+                    >
+                        谱面纠错
+                    </MyButton>
+                </MyGridContainer>
+                <h3>
+                    快速切换判定线
+                </h3>
+                <MyGridContainer
+                    :columns="5"
+                    :gap="5"
+                >
+                    <MyButton
+                        v-for="i in stateManager.judgeLinesCount"
+                        :key="i - 1 + (u ? 0 : 0)"
+                        :type="(['primary', 'warning', 'danger', 'success', 'info'] as const)[Math.floor((i - 1) / 10) % 5]"
+                        :plain="i - 1 != stateManager.state.currentJudgeLineNumber"
+                        flex
+                        @click="stateManager.state.currentJudgeLineNumber = i - 1, update()"
+                    >
+                        {{ i - 1 }}
+                    </MyButton>
+                    <MyButton
+                        type="success"
+                        @click="chart.addNewJudgeLine(), update()"
+                    >
+                        +
+                    </MyButton>
+                </MyGridContainer>
+            </div>
+            <template v-else>
+                <MyBackHeader
+                    class="title-right"
+                    @back="stateManager.state.right = RightPanelState.Default"
+                />
+                <BPMListPanel
+                    v-if="stateManager.state.right === RightPanelState.BPMList"
+                    title-teleport=".title-right"
+                />
+                <ChartMetaPanel
+                    v-else-if="stateManager.state.right === RightPanelState.Meta"
+                    title-teleport=".title-right"
+                />
+                <JudgeLinePanel
+                    v-else-if="stateManager.state.right === RightPanelState.JudgeLine"
+                    title-teleport=".title-right"
+                />
+                <SettingsPanel
+                    v-else-if="stateManager.state.right === RightPanelState.Settings"
+                    title-teleport=".title-right"
+                />
+                <HistoryPanel
+                    v-else-if="stateManager.state.right === RightPanelState.History"
+                    title-teleport=".title-right"
+                />
+                <ClipboardPanel
+                    v-else-if="stateManager.state.right === RightPanelState.Clipboard"
+                    title-teleport=".title-right"
+                />
+                <CalculatorPanel
+                    v-else-if="stateManager.state.right === RightPanelState.Calculator"
+                    title-teleport=".title-right"
+                />
+                <NoteFillPanel
+                    v-else-if="stateManager.state.right === RightPanelState.NoteFill"
+                    title-teleport=".title-right"
+                />
+                <EventFillPanel
+                    v-else-if="stateManager.state.right === RightPanelState.EventFill"
+                    title-teleport=".title-right"
+                />
+                <FastBindPanel
+                    v-else-if="stateManager.state.right === RightPanelState.FastBind"
+                    title-teleport=".title-right"
+                />
+                <ErrorPanel
+                    v-else-if="stateManager.state.right === RightPanelState.Error"
+                    title-teleport=".title-right"
+                />
+            </template>
         </ElAside>
         <ElFooter id="footer">
             <div class="footer-left">
@@ -530,11 +566,11 @@ import {
 } from "element-plus";
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { mean, min, round } from "lodash";
+import { mean, min } from "lodash";
 
 import MediaUtils from "@/tools/mediaUtils";
 import KeyboardUtils from "@/tools/keyboardUtils";
-import { confirm } from "@/tools/catchError";
+import { catchErrorByMessage, confirm } from "@/tools/catchError";
 
 import { NumberEvent, ColorEvent, TextEvent } from "@/models/event";
 import { Note, NoteType } from "@/models/note";
@@ -556,7 +592,7 @@ import HistoryManager from "@/managers/history";
 import CloneManager from "@/managers/clone";
 import EditorRenderer from "@/managers/render/editorRenderer";
 import ClipboardManager from "@/managers/clipboard";
-import StateManager from "@/managers/state";
+import StateManager, { RightPanelState } from "@/managers/state";
 import MoveManager from "@/managers/move";
 import ExportManager from "@/managers/export";
 import SelectionManager from "@/managers/selection";
@@ -589,9 +625,10 @@ import ErrorPanel from "@/panels/ErrorPanel.vue";
 
 
 import globalEventEmitter from "@/eventEmitter";
-import { RightPanelState } from "@/types";
 import store, { audioRef, canvasRef, resourcePackageRef } from "@/store";
 import Constants from "@/constants";
+import CoordinateManager from "@/managers/coordinate";
+import MutipleEditManager from "@/managers/mutipleEdit";
 
 const loadStart = inject("loadStart", () => {
     throw new Error("loadStart is not defined");
@@ -603,6 +640,7 @@ store.route = useRoute();
 const router = useRouter();
 
 loadStart();
+
 // 读取chartPackage
 const chartId = store.getChartId();
 const readResult = await window.electronAPI.readChart(chartId);
@@ -635,6 +673,7 @@ store.chartPackageRef.value = new ChartPackage({
     chart: JSON.parse(readResult.chartContent),
 });
 const chart = store.chartPackageRef.value.chart;
+
 // 加载resourcePackage
 store.resourcePackageRef.value = await getResourcePackage();
 
@@ -659,6 +698,8 @@ store.setManager("eventFiller", new EventFiller());
 store.setManager("lineBinder", new LineBinder());
 store.setManager("autoplayManager", new AutoplayManager());
 store.setManager("errorManager", new ErrorManager());
+store.setManager("coordinateManager", new CoordinateManager());
+store.setManager("mutipleEditManager", new MutipleEditManager());
 
 onBeforeUnmount(() => {
     // 释放资源
@@ -674,39 +715,61 @@ const stateManager = store.useManager("stateManager");
 const settingsManager = store.useManager("settingsManager");
 const selectionManager = store.useManager("selectionManager");
 const autoplayManager = store.useManager("autoplayManager");
+const mouseManager = store.useManager("mouseManager");
+const coordinateManager = store.useManager("coordinateManager");
 
-const fps = ref(60);
+const fps = ref(0);
 const time = ref(0);
 const combo = ref(0);
 const score = ref(0);
 const u = ref(false);
 const audioIsPlaying = ref(false);
 const tip = ref(Constants.tips[Math.floor(Math.random() * Constants.tips.length)]);
+const mouseIsInCanvas = ref(false);
+const mouseX = ref(0);
+const mouseY = ref(0);
+
+const FPS_THRESHOLDS = {
+    HIGH: 60,
+    MEDIUM: 40,
+    LOW: 20
+};
+const MOUSE_LEFT = 0;
+const MOUSE_RIGHT = 2;
+const TIP_SHOW_TIME = 10000;
+
 const fpsColor = computed(() => {
-    if (fps.value >= 60) {
-        return '#00dd00';
-    } else if (fps.value >= 40) {
-        return '#99aa00';
-    } else if (fps.value >= 20) {
-        return '#ff6600';
-    } else {
-        return '#ff0000';
+    if (fps.value >= FPS_THRESHOLDS.HIGH) {
+        return "#00dd00";
+    }
+    else if (fps.value >= FPS_THRESHOLDS.MEDIUM) {
+        return "#99aa00";
+    }
+    else if (fps.value >= FPS_THRESHOLDS.LOW) {
+        return "#ff6600";
+    }
+    else {
+        return "#ff0000";
     }
 });
+
 let windowIsFocused = true;
 let cachedRect: DOMRect;
 
 function update() {
     u.value = !u.value;
 }
-
+function openChartFolder() {
+    window.electronAPI.openChartFolder(store.getChartId());
+}
 function copyLink(e: MouseEvent, link: string) {
     e.preventDefault();
     navigator.clipboard.writeText(link);
-    ElMessage.success("已复制链接至剪贴板，请粘贴至浏览器网址栏打开")
+    ElMessage.success("已复制链接至剪贴板，请粘贴至浏览器网址栏打开");
 }
 async function handleExport() {
     const chartName = store.chartPackageRef.value?.chart.META.name || "untitled";
+
     // 使用预加载的 API 替代直接导入
     const filePath = await window.electronAPI.showSaveDialog(chartName);
     if (!filePath) return;
@@ -721,6 +784,20 @@ async function getResourcePackage() {
     const blob = MediaUtils.arrayBufferToBlob(arrayBuffer);
     return await ResourcePackage.load(blob);
 }
+async function addTextures() {
+    const texturePaths = await window.electronAPI.showOpenImageDialog(true);
+    if (!texturePaths) {
+        throw new Error("操作已取消");
+    }
+    const textureArrayBuffers = await window.electronAPI.addTextures(store.getChartId(), texturePaths);
+    const textures: Record<string, HTMLImageElement> = {};
+    for (const [name, arrayBuffer] of Object.entries(textureArrayBuffers)) {
+        const image = await MediaUtils.createImage(arrayBuffer);
+        textures[name] = image;
+    }
+    const chartPackage = store.useChartPackage();
+    chartPackage.textures = { ...chartPackage.textures, ...textures };
+}
 function canvasMouseDown(e: MouseEvent) {
     const canvas = store.useCanvas();
     const options = KeyboardUtils.createKeyOptions(e);
@@ -729,10 +806,10 @@ function canvasMouseDown(e: MouseEvent) {
         return;
     }
     switch (e.button) {
-        case 0:
+        case MOUSE_LEFT:
             globalEventEmitter.emit("MOUSE_LEFT_CLICK", x, y, options);
             return;
-        case 2:
+        case MOUSE_RIGHT:
             globalEventEmitter.emit("MOUSE_RIGHT_CLICK", x, y, options);
             return;
     }
@@ -740,6 +817,8 @@ function canvasMouseDown(e: MouseEvent) {
 function canvasMouseMove(e: MouseEvent) {
     const options = KeyboardUtils.createKeyOptions(e);
     const { x, y } = calculatePosition(e);
+    mouseX.value = coordinateManager.convertXToChart(mouseManager.mouseX);
+    mouseY.value = coordinateManager.convertYToChart(mouseManager.mouseY);
     globalEventEmitter.emit("MOUSE_MOVE", x, y, options);
 }
 function canvasMouseUp(e: MouseEvent) {
@@ -748,16 +827,19 @@ function canvasMouseUp(e: MouseEvent) {
     globalEventEmitter.emit("MOUSE_UP", x, y, options);
 }
 function canvasMouseEnter() {
+    mouseIsInCanvas.value = true;
     globalEventEmitter.emit("MOUSE_ENTER");
 }
 function canvasMouseLeave() {
+    mouseIsInCanvas.value = false;
     globalEventEmitter.emit("MOUSE_LEAVE");
 }
 function windowOnWheel(e: WheelEvent) {
     if (e.ctrlKey) {
         e.preventDefault();
         globalEventEmitter.emit("CTRL_WHEEL", e.deltaY);
-    } else {
+    }
+    else {
         // audio.currentTime +=
         //     (e.deltaY * settingsManager.settings.wheelSpeed) / -stateManager.state.pxPerSecond;
         globalEventEmitter.emit("WHEEL", e.deltaY);
@@ -793,6 +875,7 @@ async function windowOnKeyDown(e: KeyboardEvent) {
         case "T": {
             globalEventEmitter.emit("PREVIEW");
             const time = audio.currentTime;
+
             // 松开T键时停止预览
             const keyUpHandler = (e: KeyboardEvent) => {
                 const key = KeyboardUtils.formatKey(e);
@@ -807,6 +890,7 @@ async function windowOnKeyDown(e: KeyboardEvent) {
         }
         case "U": {
             globalEventEmitter.emit("PREVIEW");
+
             // 松开U键时停止预览
             const keyUpHandler = (e: KeyboardEvent) => {
                 const key = KeyboardUtils.formatKey(e);
@@ -821,7 +905,8 @@ async function windowOnKeyDown(e: KeyboardEvent) {
         case "I": {
             if (stateManager.state.isPreviewing) {
                 globalEventEmitter.emit("STOP_PREVIEW");
-            } else {
+            }
+            else {
                 globalEventEmitter.emit("PREVIEW");
             }
             return;
@@ -857,48 +942,62 @@ async function windowOnKeyDown(e: KeyboardEvent) {
             globalEventEmitter.emit("MOVE_RIGHT");
             return;
         case "Ctrl B":
+            e.preventDefault();
             globalEventEmitter.emit("PASTE_MIRROR");
             return;
         case "Ctrl S":
+            e.preventDefault();
             globalEventEmitter.emit("SAVE");
             return;
         case "Ctrl A":
+            e.preventDefault();
             globalEventEmitter.emit("SELECT_ALL");
             return;
         case "Ctrl X":
+            e.preventDefault();
             globalEventEmitter.emit("CUT");
             return;
         case "Ctrl C":
+            e.preventDefault();
             globalEventEmitter.emit("COPY");
             return;
         case "Ctrl V":
+            e.preventDefault();
             globalEventEmitter.emit("PASTE");
             return;
         case "Ctrl M":
+            e.preventDefault();
             globalEventEmitter.emit(
                 "MOVE_TO_JUDGE_LINE",
                 parseInt((await ElMessageBox.prompt("请输入判定线号", "移动到指定判定线")).value)
             );
             return;
         case "Ctrl [":
+            e.preventDefault();
             globalEventEmitter.emit("MOVE_TO_PREVIOUS_JUDGE_LINE");
             return;
         case "Ctrl ]":
+            e.preventDefault();
             globalEventEmitter.emit("MOVE_TO_NEXT_JUDGE_LINE");
             return;
         case "Ctrl Shift V":
+            e.preventDefault();
             globalEventEmitter.emit("REPEAT");
             return;
         case "Ctrl Z":
+            e.preventDefault();
             globalEventEmitter.emit("UNDO");
             return;
         case "Ctrl Y":
+            e.preventDefault();
             globalEventEmitter.emit("REDO");
             return;
         case "Ctrl D":
+            e.preventDefault();
             globalEventEmitter.emit("DISABLE");
             return;
         case "Ctrl E":
+            e.preventDefault();
             globalEventEmitter.emit("ENABLE");
             return;
         case "Alt A":
@@ -909,6 +1008,9 @@ async function windowOnKeyDown(e: KeyboardEvent) {
             return;
         case "Alt D":
             globalEventEmitter.emit("STICK");
+            return;
+        case "Alt R":
+            globalEventEmitter.emit("RANDOM");
             return;
     }
 }
@@ -933,6 +1035,7 @@ function audioOnPause() {
 function audioOnPlay() {
     audioIsPlaying.value = true;
 }
+
 /**
  * 该函数用于在含有object-fit:contain的canvas上，
  * 根据MouseEvent对象计算出点击位置在canvas绘制上下文中的坐标
@@ -957,7 +1060,8 @@ function calculatePosition({ offsetX: x, offsetY: y }: MouseEvent) {
             const height = width / innerRatio;
             const padding = (outerHeight - height) / 2;
             return { padding, ratio: innerWidth / width };
-        } else {
+        }
+        else {
             const height = outerHeight;
             const width = height * innerRatio;
             const padding = (outerWidth - width) / 2;
@@ -968,7 +1072,8 @@ function calculatePosition({ offsetX: x, offsetY: y }: MouseEvent) {
     // 根据宽高比返回调整后的坐标
     if (innerRatio > outerRatio) {
         return { x: x * ratio, y: (y - padding) * ratio };
-    } else {
+    }
+    else {
         return { y: y * ratio, x: (x - padding) * ratio };
     }
 }
@@ -999,6 +1104,10 @@ onMounted(() => {
     const renderLoop = () => {
         if (isRendering) {
             if (windowIsFocused) {
+                if (settingsManager._settings.autoHighlight) {
+                    const chart = store.useChart();
+                    chart.highlightNotes();
+                }
                 try {
                     globalEventEmitter.emit("RENDER_FRAME");
                     if (stateManager.state.isPreviewing) {
@@ -1007,7 +1116,8 @@ onMounted(() => {
                     else {
                         globalEventEmitter.emit("RENDER_EDITOR");
                     }
-                } catch (error) {
+                }
+                catch (error) {
                     console.error(error);
                 }
                 const now = performance.now();
@@ -1020,7 +1130,8 @@ onMounted(() => {
                         fps.value = mean(fpsList);
                         fpsList.length = 0;
                     }
-                } else {
+                }
+                else {
                     fps.value = 0;
                 }
                 renderTime = now;
@@ -1036,8 +1147,8 @@ onMounted(() => {
         }
     };
     const tipInterval = setInterval(() => {
-        tip.value = Constants.tips[Math.floor(Math.random() * Constants.tips.length)] || "Tip: tip加载失败";
-    }, 10000);
+        tip.value = Constants.tips[Math.floor(Math.random() * Constants.tips.length)];
+    }, TIP_SHOW_TIME);
     renderLoop();
     onBeforeUnmount(() => {
         audio.pause();
@@ -1060,6 +1171,7 @@ onMounted(() => {
             // 确保在下一个帧结束时停止渲染循环
             isRendering = false;
         });
+
         // 清理canvas和document事件
         canvas.remove();
         store.chartPackageRef.value = null;
@@ -1097,16 +1209,24 @@ onMounted(() => {
 }
 
 #header {
+    --el-header-padding: 0 10px;
     grid-area: header;
     width: 100%;
     height: 100%;
+}
+
+#header-inner {
+    width: 100%;
+    height: 100%;
     display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    /* --w: calc(100% / 4.6);
+    grid-template-columns: calc(1.6 * var(--w)) repeat(3, var(--w)); */
+    grid-template-columns: 1.5fr repeat(3, 1fr);
     grid-template-rows: 1fr 1fr 1fr;
     grid-template-areas:
-        "audio-player audio-player audio-player fps"
+        "audio-player audio-player audio-player info"
         "note-type-select speed-select horizontal-input vertical-input"
-        "note-type-select text event-layer-select offset-input";
+        "note-type-select hint-text event-layer-select offset-input";
     gap: 10px;
 }
 
@@ -1117,12 +1237,16 @@ onMounted(() => {
     gap: 20px;
 }
 
-.fps {
-    grid-area: fps;
+.info {
+    grid-area: info;
+    display: flex;
+    justify-content: space-between;
 }
 
-.text {
-    grid-area: text;
+.event-layer-hint-text {
+    grid-area: hint-text;
+    display: flex;
+    align-items: center;
 }
 
 .note-type-select {
@@ -1147,6 +1271,10 @@ onMounted(() => {
 
 .offset-input {
     grid-area: offset-input;
+}
+
+.none {
+    grid-area: none;
 }
 
 /* .note-type-select .el-radio-button {
@@ -1189,6 +1317,15 @@ onMounted(() => {
 
 #right {
     grid-area: right;
+    position: relative;
+}
+
+.back-header {
+    position: sticky;
+    background-color: white;
+    z-index: 10;
+    left: 0;
+    top: 0;
 }
 
 .el-header>.el-row {
@@ -1206,6 +1343,9 @@ onMounted(() => {
     align-items: stretch;
     gap: 10px;
     width: 100%;
+}
+
+.default-panel {
     min-height: 100%;
 }
 

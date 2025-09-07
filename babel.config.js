@@ -1,18 +1,18 @@
 module.exports = {
     presets: [
-        '@vue/cli-plugin-babel/preset',
+        "@vue/cli-plugin-babel/preset",
         [
-            '@babel/preset-env',
+            "@babel/preset-env",
             {
                 targets: {
-                    browsers: ['last 2 versions', 'ie >= 11'],
-                    node: 'current'
+                    browsers: ["last 2 versions", "ie >= 11"],
+                    node: "current"
                 },
-                useBuiltIns: 'usage',
+                useBuiltIns: "usage",
                 corejs: 3
             }
         ],
-        '@babel/preset-typescript'
+        "@babel/preset-typescript"
     ],
     plugins: [
         ["@babel/plugin-proposal-async-generator-functions"],

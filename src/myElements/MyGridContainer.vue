@@ -4,7 +4,7 @@
         v-bind="$attrs"
         :style="{
             gridTemplateColumns: `repeat(${props.columns}, 1fr)`,
-            gap: `${props.gap}px`
+            gap: `${props.gap}px`,
         }"
     >
         <slot />
@@ -15,10 +15,10 @@ const props = withDefaults(defineProps<{
     columns?: number,
     gap?: number,
     class?: string,
-}>(),{
+}>(), {
     columns: 1,
-    gap: 10,
-    class: ''
+    gap: 5,
+    class: ""
 });
 </script>
 <style scoped>

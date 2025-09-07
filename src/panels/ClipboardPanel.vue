@@ -34,7 +34,6 @@
             连续粘贴（Ctrl+Shift+V）
             <MyQuestionMark>
                 连续粘贴会把选中的音符或事件重复一遍，使新的与原来的首尾相接。<br>
-                例如连续粘贴一个长度为4拍的事件，就会把这个事件复制，并延后4拍，再粘贴。<br>
                 不会影响剪切板。<br>
             </MyQuestionMark>
         </MyButton>
@@ -79,7 +78,9 @@
                             text: '上下左右翻转'
                         }
                     ]"
-                />
+                >
+                    复制后是否翻转方向
+                </MySelect>
                 <MyButton
                     type="primary"
                     @click="globalEventEmitter.emit('REPEAT_PARAGRAPH'), close()"
@@ -96,16 +97,16 @@
     </div>
 </template>
 <script setup lang="ts">
-import globalEventEmitter from '@/eventEmitter';
-import { Beats } from '@/models/beats';
-import MyDialog from '@/myElements/MyDialog.vue';
-import MyInputBeats from '@/myElements/MyInputBeats.vue';
-import MySelect from '@/myElements/MySelect.vue';
-import store from '@/store';
-import MyButton from '@/myElements/MyButton.vue';
-import { ref } from 'vue';
-import { FlipOptions } from '@/managers/paragraphRepeater';
-import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
+import globalEventEmitter from "@/eventEmitter";
+import { Beats } from "@/models/beats";
+import MyDialog from "@/myElements/MyDialog.vue";
+import MyInputBeats from "@/myElements/MyInputBeats.vue";
+import MySelect from "@/myElements/MySelect.vue";
+import store from "@/store";
+import MyButton from "@/myElements/MyButton.vue";
+import { ref } from "vue";
+import { FlipOptions } from "@/managers/paragraphRepeater";
+import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
 const props = defineProps<{
     titleTeleport: string
 }>();

@@ -7,7 +7,7 @@ export default class SaveManager extends Manager {
         super();
         globalEventEmitter.on("SAVE", createCatchErrorByMessage(() => {
             this.save();
-        }, "保存"))
+        }, "保存"));
     }
     async save() {
         const chartId = store.getChartId();

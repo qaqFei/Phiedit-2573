@@ -1,72 +1,84 @@
 <template>
-    <ElSelect
-        ref="select"
-        v-model="inputData"
-        v-bind="$attrs"
-        :filterable="props.filterable"
-        :filter-method="filterMethod"
-        :class="props.class"
-        @change="onChange"
-        @keydown.stop="onKeyDown"
-    >
-        <template
-            v-for="option in filteredOptions"
-            :key="option"
+    <div class="my-select">
+        <p class="my-select-label">
+            <slot />
+        </p>
+        <ElSelect
+            ref="select"
+            v-model="inputData"
+            v-bind="$attrs"
+            :filterable="props.filterable"
+            :filter-method="filterMethod"
+            :class="props.class"
+            :multiple="props.multiple"
+            @change="onChange"
+            @keydown.stop="onKeyDown"
         >
-            <ElOption
-                v-if="isObject(option)"
-                :value="option.value"
-                :label="option.label"
-                @wheel.stop
+            <template
+                v-for="option in filteredOptions"
+                :key="option"
             >
-                {{ option.text }}
-            </ElOption>
-            <ElOption
-                v-else
-                :value="option"
-                :label="option.toString()"
-                @wheel.stop
-            >
-                {{ option }}
-            </ElOption>
-        </template>
-    </ElSelect>
+                <ElOption
+                    v-if="isObject(option)"
+                    :value="option.value"
+                    :label="option.label"
+                    :disabled="option.isDisabled"
+                    @wheel.stop
+                >
+                    {{ option.text }}
+                </ElOption>
+                <ElOption
+                    v-else
+                    :value="option"
+                    :label="option.toString()"
+                    :disabled="false"
+                    @wheel.stop
+                >
+                    {{ option }}
+                </ElOption>
+            </template>
+        </ElSelect>
+    </div>
 </template>
 <script setup lang="ts">
-import { ElOption, ElSelect } from 'element-plus';
-import { isObject } from 'lodash';
-import { ref, useTemplateRef, watch } from 'vue';
-const inputData = ref<A>('');
+import { ElOption, ElSelect } from "element-plus";
+import { isObject } from "lodash";
+import { ref, useTemplateRef, watch } from "vue";
+const inputData = ref<A | A[]>("");
 type A = string | number | boolean;
 const select = useTemplateRef("select");
-const model = defineModel<A>({
+const model = defineModel<A | A[]>({
     required: true
 });
 const props = withDefaults(defineProps<{
-    options: (A | {
+    options: readonly (A | {
         value: A,
         label: string,
-        text: string
+        text: string,
+        isDisabled?: boolean
     })[],
+    multiple?: boolean,
     filterable?: boolean,
     class?: string,
 }>(), {
     filterable: false,
-    class: ""
-})
+    class: "",
+    multiple: false
+});
 const emit = defineEmits<{
-    change: [A]
+    change: [A | A[]]
 }>();
 const filteredOptions = ref([...props.options]);
 watch(model, () => {
     inputData.value = model.value;
 }, {
     immediate: true
-})
+});
 
 function onChange() {
     model.value = inputData.value;
     emit("change", model.value);
+    select.value?.$el?.blur();
 }
 
 function getLabel(option: (A | {
@@ -88,7 +100,7 @@ function getValue(option: (A | {
 function filterMethod(value: string) {
     // 不区分大小写，可以跳字符，有子序列即可
     // 如value="ace", option="abcde"也可以
-    if (value == "") {
+    if (value === "") {
         filteredOptions.value = [...props.options];
         return;
     }
@@ -111,7 +123,7 @@ function filterMethod(value: string) {
     inputData.value = getValue(filteredOptions.value[0]);
     onChange();
 }
-function onKeyDown(e: KeyboardEvent){
+function onKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter") {
         onChange();
         select.value?.blur();
@@ -125,3 +137,14 @@ defineExpose({
     updateShowedValue
 });
 </script>
+<style scoped>
+.my-select {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.my-select-label {
+    white-space: nowrap;
+}
+</style>

@@ -37,19 +37,19 @@
     </ElDialog>
 </template>
 <script setup lang="ts">
-import { ElDialog } from 'element-plus'
-import MyButton from './MyButton.vue';
+import { ElDialog } from "element-plus";
+import MyButton from "./MyButton.vue";
 const isShow = defineModel<boolean>();
 withDefaults(defineProps<{
     title?: string,
     openText?: string,
     width?: string | number
 }>(), {
-    title: '',
-    openText: '打开',
-    width: '50%'
-})
-const emit = defineEmits(['open', 'opened', 'close', 'closed', 'open-auto-focus', 'close-auto-focus']);
+    title: "",
+    openText: "打开",
+    width: "50%"
+});
+const emit = defineEmits(["open", "opened", "close", "closed", "open-auto-focus", "close-auto-focus"]);
 function close() {
     isShow.value = false;
 }

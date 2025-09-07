@@ -24,21 +24,21 @@
 </template>
 
 <script setup lang="ts">
-import { ExpressionCalculator } from '@/tools/algorithm';
-import { createCatchErrorByMessage } from '@/tools/catchError';
-import { ElInput } from 'element-plus';
-import MyButton from './MyButton.vue';
-import { isString } from 'lodash';
-import { ref } from 'vue';
+import { ExpressionCalculator } from "@/tools/algorithm";
+import { createCatchErrorByMessage } from "@/tools/catchError";
+import { ElInput } from "element-plus";
+import MyButton from "./MyButton.vue";
+import { isString } from "lodash";
+import { ref } from "vue";
 
-const display = ref('');
+const display = ref("");
 const buttons: (string | [string, string])[] = [
-    'C', '(', ')', ['←', 'backspace'], ['√', 'sqrt('],
-    '+', '-', ['×', '*'], ['÷', '/'], '^',
-    '7', '8', '9', ['sin', 'sin('], ['arcsin', 'arcsin('],
-    '4', '5', '6', ['cos', 'cos('], ['arccos', 'arccos('],
-    '1', '2', '3', ['tan', 'tan('], ['arctan', 'arctan('],
-    ' ', '0', '.', ['mod', '%'], '=',
+    "C", "(", ")", ["←", "backspace"], ["√", "sqrt("],
+    "+", "-", ["×", "*"], ["÷", "/"], "^",
+    "7", "8", "9", ["sin", "sin("], ["arcsin", "arcsin("],
+    "4", "5", "6", ["cos", "cos("], ["arccos", "arccos("],
+    "1", "2", "3", ["tan", "tan("], ["arctan", "arctan("],
+    " ", "0", ".", ["mod", "%"], "=",
 ] as const;
 const expresstionCalculator = new ExpressionCalculator(
     {
@@ -68,7 +68,7 @@ const expresstionCalculator = new ExpressionCalculator(
         },
         sqrt(x) {
             if (x < 0) {
-                throw new Error('负数不能开平方');
+                throw new Error("负数不能开平方");
             }
             return Math.sqrt(x);
         },
@@ -78,7 +78,7 @@ function backspace() {
     display.value = display.value.slice(0, -1);
 }
 function clear() {
-    display.value = '';
+    display.value = "";
 }
 function append(value: string) {
     display.value += value;
@@ -88,10 +88,10 @@ const calculate = createCatchErrorByMessage(() => {
     display.value = String(result);
 }, "计算");
 const operations: Record<string, () => void> = {
-    'backspace': backspace,
-    'C': clear,
-    '=': calculate,
-}
+    "backspace": backspace,
+    "C": clear,
+    "=": calculate,
+};
 </script>
 
 <style scoped>

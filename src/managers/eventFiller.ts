@@ -1,31 +1,45 @@
 import globalEventEmitter from "@/eventEmitter";
 import Manager from "./abstract";
-import { addBeats, Beats, getBeatsValue } from "@/models/beats";
+import { addBeats, Beats, getBeatsValue, isLessThanBeats } from "@/models/beats";
 import store from "@/store";
-import { EasingType } from "@/models/easing";
+import { easingFuncs, EasingType } from "@/models/easing";
 
 export default class EventFiller extends Manager {
     constructor() {
         super();
-        globalEventEmitter.on("FILL_EVENTS", (startTime, endTime, density, code) => {
-            this.fill(startTime, endTime, density, code);
-        })
+        globalEventEmitter.on("FILL_EVENTS", () => {
+            this.fill();
+        });
     }
-    fill(startTime: Beats | undefined, endTime: Beats | undefined, density: number, code: string) {
-        if (startTime == undefined || endTime == undefined) {
-            throw new Error("请输入起始和结束时间");
-        }
+    fill() {
         const historyManager = store.useManager("historyManager");
         const stateManager = store.useManager("stateManager");
-        const func = new Function("t", code);
-        const step: Beats = [0, 1, density];
+        if (stateManager.cache.eventFill.startTime === undefined || stateManager.cache.eventFill.endTime === undefined) {
+            throw new Error("请输入起始和结束时间");
+        }
+        const easingFuncKeys: EasingType[] = Object.keys(easingFuncs).map(Number);
+        const easingFuncNames = easingFuncKeys.map(key => EasingType[key]);
+        const easingFuncValues = easingFuncKeys.map(name => easingFuncs[name]);
+        const func = new Function("t",
+            ...easingFuncNames,
+            stateManager.cache.eventFill.code);
+        const step: Beats = [0, 1, stateManager.cache.eventFill.density];
 
         historyManager.group("填充事件轨迹");
-        for (let time: Beats = [...startTime]; getBeatsValue(time) < getBeatsValue(endTime); time = addBeats(time, step)) {
-            const startT = (getBeatsValue(time) - getBeatsValue(startTime)) / (getBeatsValue(endTime) - getBeatsValue(startTime));
-            const endT = (getBeatsValue(addBeats(time, step)) - getBeatsValue(startTime)) / (getBeatsValue(endTime) - getBeatsValue(startTime));
-            const startValue = func(startT);
-            const endValue = func(endT);
+        for (let time: Beats = [...stateManager.cache.eventFill.startTime];
+            isLessThanBeats(time, stateManager.cache.eventFill.endTime);
+            time = addBeats(time, step)) {
+            // 获取这个事件开头和结尾的 t 值
+            const startT = (getBeatsValue(time) - getBeatsValue(stateManager.cache.eventFill.startTime)) /
+                (getBeatsValue(stateManager.cache.eventFill.endTime) - getBeatsValue(stateManager.cache.eventFill.startTime));
+
+            const endT = (getBeatsValue(addBeats(time, step)) - getBeatsValue(stateManager.cache.eventFill.startTime)) /
+                (getBeatsValue(stateManager.cache.eventFill.endTime) - getBeatsValue(stateManager.cache.eventFill.startTime));
+
+            const startValue = func(startT,
+                ...easingFuncValues);
+            const endValue = func(endT,
+                ...easingFuncValues);
             const startX = startValue.x ?? 0;
             const startY = startValue.y ?? 0;
             const startAngle = startValue.angle ?? 0;
@@ -43,9 +57,9 @@ export default class EventFiller extends Manager {
                 endTime: addBeats(time, step),
                 linkgroup: 0,
                 isDisabled: false,
-            }
-            if (stateManager._state.currentEventLayerId == 'X') {
-                stateManager._state.currentEventLayerId = '0';
+            };
+            if (stateManager._state.currentEventLayerId === "X") {
+                stateManager._state.currentEventLayerId = "0";
             }
 
             const moveXEvent = store.addEvent({

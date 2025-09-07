@@ -7,7 +7,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import MyCalculator from '@/myElements/MyCalculator.vue';
+import MyCalculator from "@/myElements/MyCalculator.vue";
 const props = defineProps<{
     titleTeleport: string
 }>();

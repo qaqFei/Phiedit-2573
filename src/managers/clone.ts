@@ -1,73 +1,70 @@
-import { reactive } from "vue";
-import { addBeats, Beats, beatsToSeconds, isGreaterThanBeats, isLessThanBeats, subBeats } from "@/models/beats";
+import { addBeats, Beats, beatsToSeconds, isGreaterThanBeats, isLessThanBeats, MAX_BEATS, MIN_BEATS, subBeats } from "@/models/beats";
 import store from "@/store";
 import { Note } from "@/models/note";
 import globalEventEmitter from "@/eventEmitter";
 import Manager from "./abstract";
-import { SelectedElement } from "@/types";
+import { NoteOrEvent } from "@/models/event";
 import { createCatchErrorByMessage } from "@/tools/catchError";
+import MathUtils from "@/tools/mathUtils";
+import Constants from "@/constants";
 export default class CloneManager extends Manager {
-    readonly options = reactive({
-        targetJudgeLines: new Array<number>(),
-        targetEventLayer: 0,
-        timeDuration: [8, 0, 1] as Beats,
-        timeDelta: [0, 1, 4] as Beats,
-    })
     constructor() {
         super();
         globalEventEmitter.on("CLONE", createCatchErrorByMessage(() => {
             this.clone();
-        }, "克隆"))
+        }, "克隆"));
         globalEventEmitter.on("REPEAT", createCatchErrorByMessage(() => {
             this.repeat();
-        }, "连续粘贴"))
+        }, "连续粘贴"));
     }
     clone() {
+        const stateManager = store.useManager("stateManager");
         const selectionManager = store.useManager("selectionManager");
         const historyManager = store.useManager("historyManager");
         const mouseManager = store.useManager("mouseManager");
         mouseManager.checkMouseUp();
         let beats: Beats = [0, 0, 1];
         let i = 0;
-        if (this.options.targetJudgeLines.length == 0) {
+        if (stateManager.cache.clone.targetJudgeLines.length === 0) {
             throw new Error("请选择要克隆的目标判定线");
         }
         historyManager.group("克隆");
-        while (isLessThanBeats(beats, this.options.timeDuration)) {
+        while (isLessThanBeats(beats, stateManager.cache.clone.timeDuration)) {
             for (const element of selectionManager.selectedElements) {
                 if (element instanceof Note) {
                     const noteObject = element.toObject();
                     noteObject.startTime = addBeats(noteObject.startTime, beats);
                     noteObject.endTime = addBeats(noteObject.endTime, beats);
-                    const newNote = store.addNote(noteObject, this.options.targetJudgeLines[i]);
+                    const newNote = store.addNote(noteObject, stateManager.cache.clone.targetJudgeLines[i]);
                     historyManager.recordAddNote(newNote.id);
                 }
                 else {
                     const eventObject = element.toObject();
                     eventObject.startTime = addBeats(eventObject.startTime, beats);
                     eventObject.endTime = addBeats(eventObject.endTime, beats);
-                    const newEvent = store.addEvent(eventObject, element.type, element.eventLayerId, this.options.targetJudgeLines[i]);
+                    const newEvent = store.addEvent(eventObject, element.type, element.eventLayerId, stateManager.cache.clone.targetJudgeLines[i]);
                     historyManager.recordAddEvent(newEvent.id);
                 }
             }
-            beats = addBeats(beats, this.options.timeDelta);
-            i = (i + 1) % this.options.targetJudgeLines.length;
+            beats = addBeats(beats, stateManager.cache.clone.timeDelta);
+            i = (i + 1) % stateManager.cache.clone.targetJudgeLines.length;
         }
+
         // 不保留源元素
         selectionManager.deleteSelection();
         historyManager.ungroup();
     }
     repeat() {
         // 把选中的元素复制一遍并粘贴
-        const stateManager = store.useManager("stateManager");
         const selectionManager = store.useManager("selectionManager");
         const historyManager = store.useManager("historyManager");
+        const coordinateManager = store.useManager("coordinateManager");
         const chart = store.useChart();
-        if (selectionManager.selectedElements.length == 0) {
+        if (selectionManager.selectedElements.length === 0) {
             throw new Error("请选择元素");
         }
-        let minTime: Beats = [Infinity, 0, 1];
-        let maxTime: Beats = [-Infinity, 0, 1];
+        let minTime: Beats = [...MAX_BEATS];
+        let maxTime: Beats = [...MIN_BEATS];
         for (let i = 0; i < selectionManager.selectedElements.length; i++) {
             const element = selectionManager.selectedElements[i];
             if (isLessThanBeats(element.startTime, minTime)) {
@@ -79,7 +76,7 @@ export default class CloneManager extends Manager {
         }
         const length = subBeats(maxTime, minTime);
         historyManager.group("连续粘贴");
-        const elements: SelectedElement[] = [];
+        const elements: NoteOrEvent[] = [];
         for (const element of selectionManager.selectedElements) {
             if (element instanceof Note) {
                 const noteObject = element.toObject();
@@ -102,8 +99,8 @@ export default class CloneManager extends Manager {
         selectionManager.unselectAll();
         selectionManager.select(...elements);
         const seconds = beatsToSeconds(chart.BPMList, maxTime);
-        if (!stateManager.secondsIsVisible(seconds)) {
-            stateManager.gotoSeconds(seconds);
+        if (!MathUtils.between(coordinateManager.getRelativePositionYOfSeconds(seconds), Constants.EDITOR_VIEW_NOTES_VIEWBOX.top, Constants.EDITOR_VIEW_NOTES_VIEWBOX.bottom)) {
+            store.setSeconds(seconds);
         }
     }
 }

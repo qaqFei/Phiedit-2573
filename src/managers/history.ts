@@ -8,16 +8,17 @@ import Manager from "./abstract";
 export default class HistoryManager extends Manager {
     /** 撤销栈，最先被执行的操作在最前面 */
     undoStack: Record[] = [];
+
     /** 重做栈，最先被撤销的操作在最前面 */
     redoStack: Record[] = [];
     constructor() {
         super();
         globalEventEmitter.on("UNDO", createCatchErrorByMessage(() => {
             this.undo();
-        }, "撤销"))
+        }, "撤销"));
         globalEventEmitter.on("REDO", createCatchErrorByMessage(() => {
             this.redo();
-        }, "重做"))
+        }, "重做"));
     }
     getSize() {
         function _getSize(stack: Record[]) {
@@ -50,52 +51,53 @@ export default class HistoryManager extends Manager {
     }
     recordAddNote(id: string) {
         const settingsManager = store.useManager("settingsManager");
-        const stateManager = store.useManager("stateManager");
         const record = new AddNoteRecord(id);
         this.addRecord(record);
-        if (settingsManager._settings.autoCheckErrors)
-            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
+        if (settingsManager._settings.autoCheckErrors) {
+            globalEventEmitter.emit("CHECK_ERRORS");
+        }
     }
     recordModifyNote<T extends typeof noteAttributes[number]>(id: string, attribute: T, newValue: INote[T], oldValue?: INote[T]) {
         const settingsManager = store.useManager("settingsManager");
-        const stateManager = store.useManager("stateManager");
         const record = new ModifyNoteRecord(id, attribute, newValue, oldValue);
         this.addRecord(record);
-        if (settingsManager._settings.autoCheckErrors)
-            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
+        if (settingsManager._settings.autoCheckErrors) {
+            globalEventEmitter.emit("CHECK_ERRORS");
+        }
     }
     recordRemoveNote(noteObject: INote, judgeLineNumber: number, id: string) {
         const settingsManager = store.useManager("settingsManager");
-        const stateManager = store.useManager("stateManager");
         const record = new RemoveNoteRecord(noteObject, judgeLineNumber, id);
         this.addRecord(record);
-        if (settingsManager._settings.autoCheckErrors)
-            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
+        if (settingsManager._settings.autoCheckErrors) {
+            globalEventEmitter.emit("CHECK_ERRORS");
+        }
     }
     recordAddEvent(id: string) {
         const settingsManager = store.useManager("settingsManager");
-        const stateManager = store.useManager("stateManager");
         const record = new AddEventRecord(id);
         this.addRecord(record);
-        if (settingsManager._settings.autoCheckErrors)
-            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
+        if (settingsManager._settings.autoCheckErrors) {
+            globalEventEmitter.emit("CHECK_ERRORS");
+        }
     }
     recordModifyEvent<T extends typeof eventAttributes[number]>(id: string, attribute: T, newValue: IEvent<unknown>[T], oldValue?: IEvent<unknown>[T]) {
         const settingsManager = store.useManager("settingsManager");
-        const stateManager = store.useManager("stateManager");
         const record = new ModifyEventRecord(id, attribute, newValue, oldValue);
         this.addRecord(record);
-        if (settingsManager._settings.autoCheckErrors)
-            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
+        if (settingsManager._settings.autoCheckErrors) {
+            globalEventEmitter.emit("CHECK_ERRORS");
+        }
     }
     recordRemoveEvent(eventObject: IEvent<unknown>, eventType: string, eventLayerId: string, judgeLineNumber: number, id: string) {
         const settingsManager = store.useManager("settingsManager");
-        const stateManager = store.useManager("stateManager");
         const record = new RemoveEventRecord(eventObject, eventType, eventLayerId, judgeLineNumber, id);
         this.addRecord(record);
-        if (settingsManager._settings.autoCheckErrors)
-            globalEventEmitter.emit("CHECK_ERRORS", stateManager.cache.error.errorType);
+        if (settingsManager._settings.autoCheckErrors) {
+            globalEventEmitter.emit("CHECK_ERRORS");
+        }
     }
+
     /** 新增的命令是否加入到组中 */
     grouped = false;
     group(name: string) {
@@ -119,7 +121,7 @@ export default class HistoryManager extends Manager {
             globalEventEmitter.emit("HISTORY_UPDATE");
         }
         else {
-            throw new Error("没有可撤销的操作")
+            throw new Error("没有可撤销的操作");
         }
     }
     redo() {
@@ -130,7 +132,7 @@ export default class HistoryManager extends Manager {
             globalEventEmitter.emit("HISTORY_UPDATE");
         }
         else {
-            throw new Error("没有可重做的操作")
+            throw new Error("没有可重做的操作");
         }
     }
 }
@@ -171,7 +173,7 @@ class AddNoteRecord extends Record {
     }
     undo() {
         super.undo();
-        if (this.id == undefined) {
+        if (this.id === undefined) {
             throw new Error("AddNoteRecord: id is undefined");
         }
         const note = store.getNoteById(this.id);
@@ -181,7 +183,7 @@ class AddNoteRecord extends Record {
         store.removeNote(this.id);
     }
     getDescription() {
-        return `添加音符 ${this.id}`
+        return `添加音符 ${this.id}`;
     }
 }
 class ModifyNoteRecord<T extends typeof noteAttributes[number]> extends Record {
@@ -218,7 +220,7 @@ class RemoveNoteRecord extends Record {
     }
     redo() {
         super.redo();
-        if (this.id == undefined) {
+        if (this.id === undefined) {
             throw new Error("RemoveNoteRecord: id is undefined");
         }
         const note = store.getNoteById(this.id);
@@ -237,7 +239,7 @@ class RemoveNoteRecord extends Record {
         return note;
     }
     getDescription() {
-        return `删除音符 ${this.id}`
+        return `删除音符 ${this.id}`;
     }
 }
 class AddEventRecord extends Record {
@@ -250,8 +252,8 @@ class AddEventRecord extends Record {
     }
     redo() {
         super.redo();
-        if (this.eventObject == undefined || this.judgeLineNumber == undefined || this.eventLayerId == undefined || this.eventType == undefined) {
-            throw new Error("AddEventCommand: eventObject, judgeLineNumber, eventLayerId or eventType is undefined")
+        if (this.eventObject === undefined || this.judgeLineNumber === undefined || this.eventLayerId === undefined || this.eventType === undefined) {
+            throw new Error("AddEventCommand: eventObject, judgeLineNumber, eventLayerId or eventType is undefined");
         }
         const event = store.addEvent(this.eventObject, this.eventType, this.eventLayerId, this.judgeLineNumber, this.id);
         this.id = event.id;
@@ -260,7 +262,7 @@ class AddEventRecord extends Record {
     undo() {
         super.undo();
         if (this.id === undefined) {
-            throw new Error("AddEventRecord: id is undefined")
+            throw new Error("AddEventRecord: id is undefined");
         }
         const event = store.getEventById(this.id);
         if (!event) throw new Error(`Event ${this.id} not found`);
@@ -271,7 +273,7 @@ class AddEventRecord extends Record {
         store.removeEvent(this.id);
     }
     getDescription() {
-        return `添加事件 ${this.id}`
+        return `添加事件 ${this.id}`;
     }
 }
 class ModifyEventRecord<T extends typeof eventAttributes[number]> extends Record {
@@ -309,7 +311,7 @@ class RemoveEventRecord extends Record {
     redo() {
         super.redo();
         if (this.id === undefined) {
-            throw new Error("RemoveEventRecord: id is undefined")
+            throw new Error("RemoveEventRecord: id is undefined");
         }
         const event = store.getEventById(this.id);
         if (!event) throw new Error(`Event ${this.id} not found`);
@@ -321,15 +323,15 @@ class RemoveEventRecord extends Record {
     }
     undo() {
         super.undo();
-        if (this.eventObject == undefined || this.judgeLineNumber == undefined || this.eventLayerId == undefined || this.eventType == undefined) {
-            throw new Error("RemoveEventCommand: eventObject, judgeLineNumber, eventLayerId or eventType is undefined")
+        if (this.eventObject === undefined || this.judgeLineNumber === undefined || this.eventLayerId === undefined || this.eventType === undefined) {
+            throw new Error("RemoveEventCommand: eventObject, judgeLineNumber, eventLayerId or eventType is undefined");
         }
         const event = store.addEvent(this.eventObject, this.eventType, this.eventLayerId, this.judgeLineNumber, this.id);
         this.id = event.id;
         return event;
     }
     getDescription() {
-        return `删除事件 ${this.id}`
+        return `删除事件 ${this.id}`;
     }
 }
 class RecordGroup extends Record {

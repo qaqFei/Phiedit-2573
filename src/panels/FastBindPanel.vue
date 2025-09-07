@@ -21,7 +21,7 @@
                 v-for="(line, i) in childLines"
                 :key="i - 1"
             >
-                <ElCheckboxButton v-model="isSelected[line.id]">
+                <ElCheckboxButton v-model="stateManager.cache.fastBind.judgeLinesIsSelected[line.id]">
                     {{ line.id }}
                 </ElCheckboxButton>
             </template>
@@ -38,7 +38,7 @@
                 +8
             </MyButton>
         </MyGridContainer>
-        <MyInputBeats v-model="eventLength">
+        <MyInputBeats v-model="stateManager.cache.fastBind.eventLength">
             <template #prepend>
                 事件长度
                 <MyQuestionMark>
@@ -49,7 +49,7 @@
                 </MyQuestionMark>
             </template>
         </MyInputBeats>
-        <MyInputNumber v-model="precision">
+        <MyInputNumber v-model="stateManager.cache.fastBind.precision">
             <template #prepend>
                 精度
                 <MyQuestionMark>
@@ -67,16 +67,15 @@
     </div>
 </template>
 <script setup lang="ts">
-import globalEventEmitter from '@/eventEmitter';
-import { Beats } from '@/models/beats';
-import MyInputBeats from '@/myElements/MyInputBeats.vue';
-import MyInputNumber from '@/myElements/MyInputNumber.vue';
-import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
-import MyGridContainer from '@/myElements/MyGridContainer.vue';
-import MyButton from '@/myElements/MyButton.vue';
-import store from '@/store';
-import { ElCheckboxButton } from 'element-plus';
-import { computed, reactive, ref } from 'vue';
+import globalEventEmitter from "@/eventEmitter";
+import MyInputBeats from "@/myElements/MyInputBeats.vue";
+import MyInputNumber from "@/myElements/MyInputNumber.vue";
+import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
+import MyGridContainer from "@/myElements/MyGridContainer.vue";
+import MyButton from "@/myElements/MyButton.vue";
+import store from "@/store";
+import { ElCheckboxButton } from "element-plus";
+import { computed, onMounted, ref } from "vue";
 
 const props = defineProps<{
     titleTeleport: string
@@ -84,12 +83,10 @@ const props = defineProps<{
 const chart = store.useChart();
 const stateManager = store.useManager("stateManager");
 const u = ref(false);
-const eventLength = ref<Beats>([4, 0, 1]);
-const precision = ref(16);
-const isSelected = reactive(Array(stateManager.judgeLinesCount).fill(false));
+
 const childLines = computed(() => {
-    return chart.judgeLineList.filter(judgeLine => judgeLine.father == stateManager.state.currentJudgeLineNumber + (u.value ? 0 : 0));
-})
+    return chart.judgeLineList.filter(judgeLine => judgeLine.father === stateManager.state.currentJudgeLineNumber + (u.value ? 0 : 0));
+});
 function update() {
     u.value = !u.value;
 }
@@ -97,16 +94,23 @@ function addNewJudgeLine(count = 1) {
     for (let i = 0; i < count; i++) {
         const judgeLine = chart.addNewJudgeLine();
         judgeLine.father = stateManager.state.currentJudgeLineNumber;
-        isSelected.push(true);
+        stateManager.cache.fastBind.judgeLinesIsSelected.push(true);
     }
 }
 function bindLine() {
     const selectedLineNumbers = [];
-    for (let i = 0; i < isSelected.length; i++) {
-        if (isSelected[i]) {
+    for (let i = 0; i < stateManager.cache.fastBind.judgeLinesIsSelected.length; i++) {
+        if (stateManager.cache.fastBind.judgeLinesIsSelected[i]) {
             selectedLineNumbers.push(i);
         }
     }
-    globalEventEmitter.emit("BIND_LINE", selectedLineNumbers, eventLength.value, precision.value);
+    globalEventEmitter.emit("BIND_LINE");
 }
+
+function updateArrayLength() {
+    stateManager.cache.fastBind.judgeLinesIsSelected = new Array(stateManager.judgeLinesCount).fill(false);
+}
+onMounted(() => { 
+    updateArrayLength();
+});
 </script>

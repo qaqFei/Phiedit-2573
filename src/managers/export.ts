@@ -8,12 +8,10 @@ export default class ExportManager extends Manager {
         super();
         globalEventEmitter.on("EXPORT", createCatchErrorByMessage((targetPath) => {
             this.export(targetPath);
-        }, "导出"))
+        }, "导出"));
     }
     export(targetPath: string) {
-        console.log(targetPath)
         const chartId = store.getChartId();
-        console.log(chartId)
         window.electronAPI.exportChart(chartId, targetPath);
     }
 }

@@ -22,12 +22,12 @@
     </ElDialog>
 </template>
 <script setup lang="ts">
-import { ElDialog } from 'element-plus';
+import { ElDialog } from "element-plus";
 const isShow = defineModel<boolean>();
 const props = defineProps<{
     width?: number
     height?: number
-}>()
+}>();
 function show() {
     isShow.value = true;
 }

@@ -142,10 +142,10 @@ export class ExpressionCalculator {
         };
 
         const parse4 = (): AstNode => {
-            if (tokens[index] === '(') {
+            if (tokens[index] === "(") {
                 index++;
                 const expr = parse1();
-                if (index >= tokens.length || tokens[index] !== ')') throw new Error('括号不匹配');
+                if (index >= tokens.length || tokens[index] !== ")") throw new Error("括号不匹配");
                 index++;
                 return expr;
             }
@@ -154,13 +154,14 @@ export class ExpressionCalculator {
             }
             if (variableRegex.test(tokens[index])) {
                 const id = tokens[index++];
-                if (tokens[index] === '(') {
+                if (tokens[index] === "(") {
                     index++;
                     const args = [];
-                    while (tokens[index] !== ')') {
+                    while (tokens[index] !== ")") {
                         args.push(parse1());
-                        if (index < tokens.length && tokens[index] === ',')
+                        if (index < tokens.length && tokens[index] === ",") {
                             index++;
+                        }
                         if (index >= tokens.length) {
                             throw new Error(`函数 ${id} 的括号不匹配`);
                         }
@@ -187,34 +188,35 @@ export class ExpressionCalculator {
         if (node instanceof Identifier) {
             const value = this.variables[node.name];
             if (value === undefined) throw new Error(`变量 ${node.name} 未定义`);
-            if (typeof value !== 'number') throw new Error(`变量 ${node.name} 不是数字`);
+            if (typeof value !== "number") throw new Error(`变量 ${node.name} 不是数字`);
             return value;
         }
         if (node instanceof BinaryExpression) {
             const left = this.evaluate(node.left);
             const right = this.evaluate(node.right);
             switch (node.op) {
-                case '+': return left + right;
-                case '-': return left - right;
-                case '*': return left * right;
-                case '/': return left / right;
-                case '^': return left ** right;
-                case '%': return left % right;
+                case "+": return left + right;
+                case "-": return left - right;
+                case "*": return left * right;
+                case "/": return left / right;
+                case "^": return left ** right;
+                case "%": return left % right;
                 default: throw new Error(`未知运算符: ${node.op}`);
             }
         }
         if (node instanceof CallExpression) {
             const func = this.functions[node.callee];
-            if (typeof func !== 'function') throw new Error(`${node.callee} 不是函数`);
+            if (typeof func !== "function") throw new Error(`${node.callee} 不是函数`);
             return func(...node.arguments.map(arg => this.evaluate(arg)));
         }
         if (node instanceof UnaryExpression) {
             const arg = this.evaluate(node.argument);
-            return node.op === '-' ? -arg : +arg;
+            return node.op === "-" ? -arg : +arg;
         }
         throw new Error(`未知节点类型: ${node.type}`);
     }
 }
+
 // export function binarySearchInsertIndex<T>(arr: T[], target: T, compareFn: (a: T, b: T) => number): number {
 //     let left = 0;
 //     let right = arr.length - 1;
@@ -258,44 +260,4 @@ export function checkAndSort<T>(arr: T[], compare: (a: T, b: T) => number) {
     if (!isSorted(arr, compare)) {
         arr.sort(compare);
     }
-}
-// export function max<T>(arr: T[], compare: (a: T, b: T) => number) {
-//     return arr.reduce((max, current) => compare(current, max) > 0 ? current : max, arr[0]);
-// }
-// export function min<T>(arr: T[], compare: (a: T, b: T) => number) {
-//     return arr.reduce((min, current) => compare(current, min) < 0 ? current : min, arr[0]);
-// }
-export function formatData(bytes: number, p = 2) {
-    return format(['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'], 1024, bytes, p)
-}
-// export function formatTime(seconds: number) {
-//     const min = Math.floor(seconds / 60).toString().padStart(2, '0');
-//     const sec = Math.floor(seconds % 60).toString().padStart(2, '0');
-//     return `${min}:${sec}`;
-// }
-export function format(units: string[], base: number, num: number, p = 2): string {
-    // 输入参数有效性检查
-    if (!Array.isArray(units) || units.length == 0) {
-        throw new Error("Invalid units array");
-    }
-    if (typeof base != 'number' || base <= 0) {
-        throw new Error("Invalid base: " + base);
-    }
-    if (!isFinite(num) || isNaN(num)) {
-        throw new Error("Invalid number: " + num);
-    }
-    if (typeof p != 'number' || p < 0 || !Number.isInteger(p)) {
-        throw new Error("Invalid precision: " + p);
-    }
-
-    let result = '';
-    for (let i = 0; i < units.length; i++) {
-        if (num < base || i == units.length - 1) {
-            result = num.toFixed(p) + ' ' + units[i];
-            break;
-        }
-        num /= base;
-    }
-
-    return result;
 }

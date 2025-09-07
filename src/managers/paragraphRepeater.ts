@@ -29,32 +29,33 @@ export default class ParagraphRepeater {
             for (const eventLayer of judgeLine.eventLayers) {
                 for (const type of ["moveX", "moveY", "rotate", "alpha", "speed"]) {
                     const events = eventLayer.getEventsByType(type);
+
                     // 找到位于startTime和endTime之间的事件
                     const filteredEvents = events.filter(event => {
-                        return getBeatsValue(event.endTime) >= getBeatsValue(this.startTime)
-                            && getBeatsValue(event.startTime) <= getBeatsValue(this.endTime);
+                        return getBeatsValue(event.endTime) >= getBeatsValue(this.startTime) &&
+                            getBeatsValue(event.startTime) <= getBeatsValue(this.endTime);
                     });
                     for (const event of filteredEvents) {
                         const eventObject = event.toObject();
                         eventObject.startTime = addBeats(eventObject.startTime, beats);
                         eventObject.endTime = addBeats(eventObject.endTime, beats);
-                        if ((this.flip == FlipOptions.Horizontal || this.flip == FlipOptions.Both) && type == "moveX") {
+                        if ((this.flip === FlipOptions.Horizontal || this.flip === FlipOptions.Both) && type === "moveX") {
                             eventObject.start = -eventObject.start;
                             eventObject.end = -eventObject.end;
                         }
-                        if ((this.flip == FlipOptions.Vertical || this.flip == FlipOptions.Both) && type == "moveY") {
+                        if ((this.flip === FlipOptions.Vertical || this.flip === FlipOptions.Both) && type === "moveY") {
                             eventObject.start = -eventObject.start;
                             eventObject.end = -eventObject.end;
                         }
-                        if (type == "rotate" && this.flip == FlipOptions.Horizontal) {
+                        if (type === "rotate" && this.flip === FlipOptions.Horizontal) {
                             eventObject.start = -eventObject.start;
                             eventObject.end = -eventObject.end;
                         }
-                        if (type == "rotate" && this.flip == FlipOptions.Vertical) {
+                        if (type === "rotate" && this.flip === FlipOptions.Vertical) {
                             eventObject.start = 180 - eventObject.start;
                             eventObject.end = 180 - eventObject.end;
                         }
-                        if (type == "rotate" && this.flip == FlipOptions.Both) {
+                        if (type === "rotate" && this.flip === FlipOptions.Both) {
                             eventObject.start = 180 + eventObject.start;
                             eventObject.end = 180 + eventObject.end;
                         }
@@ -65,14 +66,14 @@ export default class ParagraphRepeater {
             }
             const notes = judgeLine.notes;
             const filteredNotes = notes.filter(note => {
-                return getBeatsValue(note.endTime) >= getBeatsValue(this.startTime)
-                    && getBeatsValue(note.startTime) <= getBeatsValue(this.endTime);
+                return getBeatsValue(note.endTime) >= getBeatsValue(this.startTime) &&
+                    getBeatsValue(note.startTime) <= getBeatsValue(this.endTime);
             });
             for (const note of filteredNotes) {
                 const noteObject = note.toObject();
                 noteObject.startTime = addBeats(noteObject.startTime, beats);
                 noteObject.endTime = addBeats(noteObject.endTime, beats);
-                if (this.flip == FlipOptions.Horizontal || this.flip == FlipOptions.Vertical) {
+                if (this.flip === FlipOptions.Horizontal || this.flip === FlipOptions.Vertical) {
                     noteObject.positionX = -noteObject.positionX;
                 }
                 const newNote = store.addNote(noteObject, judgeLine.id);

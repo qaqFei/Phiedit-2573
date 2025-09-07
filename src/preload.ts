@@ -10,9 +10,9 @@ const electronAPI: ElectronAPI = {
     readChart: (chartId: string) => ipcRenderer.invoke("read-chart", chartId),
     exportChart: (chartId: string, targetPath: string) => ipcRenderer.invoke("export-chart", chartId, targetPath),
     showSaveDialog: (name: string) => ipcRenderer.invoke("show-save-dialog", name),
-    showOpenChartDialog: () => ipcRenderer.invoke("show-open-chart-dialog"),
-    showOpenMusicDialog: () => ipcRenderer.invoke("show-open-music-dialog"),
-    showOpenBackgroundDialog: () => ipcRenderer.invoke("show-open-background-dialog"),
+    showOpenChartDialog: (multiple?: boolean) => ipcRenderer.invoke("show-open-chart-dialog", multiple),
+    showOpenMusicDialog: (multiple?: boolean) => ipcRenderer.invoke("show-open-music-dialog", multiple),
+    showOpenImageDialog: (multiple?: boolean) => ipcRenderer.invoke("show-open-image-dialog", multiple),
     readChartInfo: (chartId: string) => ipcRenderer.invoke("read-chart-info", chartId),
     writeChartInfo: (chartId: string, infoObj: {
         name: string,
@@ -24,7 +24,10 @@ const electronAPI: ElectronAPI = {
     readResourcePackage: () => ipcRenderer.invoke("read-resource-package"),
     readSettings: () => ipcRenderer.invoke("read-settings"),
     writeSettings: (settings: typeof defaultSettings) => ipcRenderer.invoke("write-settings", settings),
-}
+    addTextures: (chartId: string, texturePaths: string[]) => ipcRenderer.invoke("add-textures", chartId, texturePaths),
+    openChartFolder: (path: string) => ipcRenderer.invoke("open-chart-folder", path),
+    renameChartId: (chartId: string, newChartId: string) => ipcRenderer.invoke("rename-chart-id", chartId, newChartId),
+};
 
 interface ElectronAPI {
     loadChart: (chartPackagePath: string) => Promise<string>;
@@ -41,9 +44,9 @@ interface ElectronAPI {
     readChartList: () => Promise<string[]>,
     exportChart: (chartId: string, targetPath: string) => Promise<void>,
     showSaveDialog: (name: string) => Promise<string>,
-    showOpenChartDialog: () => Promise<string[]>,
-    showOpenMusicDialog: () => Promise<string[]>,
-    showOpenBackgroundDialog: () => Promise<string[]>,
+    showOpenChartDialog: () => Promise<string[] | null>,
+    showOpenMusicDialog: () => Promise<string[] | null>,
+    showOpenImageDialog: (multiple?: boolean) => Promise<string[] | null>,
     readChartInfo: (chartId: string) => Promise<{
         name: string;
         charter: string;
@@ -63,7 +66,10 @@ interface ElectronAPI {
     }) => Promise<void>,
     readResourcePackage: () => Promise<ArrayBuffer>,
     readSettings: () => Promise<object | null>,
-    writeSettings: (settings: typeof defaultSettings) => Promise<void>
+    writeSettings: (settings: typeof defaultSettings) => Promise<void>,
+    addTextures: (chartId: string, texturePaths: string[]) => Promise<Record<string, ArrayBuffer>>,
+    openChartFolder: (chartId: string) => Promise<void>,
+    renameChartId: (chartId: string, newChartId: string) => Promise<void>
 }
 
 // 扩展 Window 接口以包含 electronAPI

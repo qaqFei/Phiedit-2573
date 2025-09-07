@@ -8,7 +8,7 @@
         </Teleport>
         <em>
             已记录{{ historyManager.getSize() }}条历史记录
-            （显示最近的10条）
+            （显示最近的{{ num * 2 }}条）
         </em>
         <MyButton
             type="primary"
@@ -32,7 +32,7 @@
 </template>
 <script setup lang="ts">
 import { ElTable, ElTableColumn } from "element-plus";
-import MyButton from '@/myElements/MyButton.vue';
+import MyButton from "@/myElements/MyButton.vue";
 import globalEventEmitter from "@/eventEmitter";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import store from "@/store";
@@ -63,7 +63,7 @@ function getData() {
             return {
                 description: command.getDescription(),
                 isCurrent: false
-            }
+            };
         }), num, {
             description: "-",
             isCurrent: false
@@ -76,12 +76,12 @@ function getData() {
             return {
                 description: command.getDescription(),
                 isCurrent: false
-            }
+            };
         }), num, {
             description: "-",
             isCurrent: false
         }),
-    ]
+    ];
 }
 function rowClassName(options: {
     row: ReturnType<typeof getData>[number],

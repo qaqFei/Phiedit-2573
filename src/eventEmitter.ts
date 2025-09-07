@@ -1,5 +1,4 @@
 import type { Beats } from "./models/beats";
-import type { EasingType } from "./models/easing";
 import type { NoteType } from "./models/note";
 import EventEmitter from "./tools/eventEmitter";
 type PositionX = number;
@@ -11,8 +10,9 @@ type KeyOptions = {
     alt: boolean;
     meta: boolean;
 }
+
 /**
- * 事件管理器的事件名称列表
+ * 事件名称列表
  * 如要添加新事件，请在此添加，并在数组中规定每个参数的类型
  */
 interface GlobalEventMap {
@@ -40,15 +40,13 @@ interface GlobalEventMap {
     MOVE_DOWN: []
     NEXT_JUDGE_LINE: []
     PREVIOUS_JUDGE_LINE: []
-    CHANGE_JUDGE_LINE: [number]
+    CHANGE_JUDGE_LINE: []
     CHANGE_TYPE: [NoteType]
     PREVIEW: []
     STOP_PREVIEW: []
     MOVE_TO_JUDGE_LINE: [number]
     MOVE_TO_PREVIOUS_JUDGE_LINE: []
     MOVE_TO_NEXT_JUDGE_LINE: []
-    SAVE_FAST_EDIT: [string, string]
-    EVALUATE_CODE: [string]
     REPEAT: []
     CLONE: []
     UNDO: []
@@ -60,15 +58,19 @@ interface GlobalEventMap {
     REVERSE: []
     SWAP: []
     STICK: []
+    RANDOM: []
     DISABLE: []
     ENABLE: []
-    FILL_NOTES: [NoteType, EasingType, number]
-    FILL_EVENTS: [Beats | undefined, Beats | undefined, number, string]
-    BIND_LINE: [number[], Beats | undefined, number]
-    CHECK_ERRORS: [string]
+    FILL_NOTES: []
+    FILL_EVENTS: []
+    BIND_LINE: []
+    CHECK_ERRORS: []
+    AUTO_FIX_ERRORS: []
+    MUTIPLE_EDIT: []
 
     SELECTION_UPDATE: []
     HISTORY_UPDATE: []
+    ERRORS_FIXED: [number]
 }
 class GlobalEventEmitter extends EventEmitter<GlobalEventMap> {}
 const globalEventEmitter = new GlobalEventEmitter();

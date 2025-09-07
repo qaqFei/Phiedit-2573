@@ -1,13 +1,13 @@
 import JSZip from "jszip";
-import { formatData } from "../tools/algorithm";
-import { isArrayOfNumbers } from "../tools/typeCheck";
+import { isArrayOfNumbers } from "../tools/typeTools";
 import { FileReaderExtends } from "../tools/classExtends";
 import EditableImage from "../tools/editableImage";
 import jsyaml from "js-yaml";
-import { color, RGBAcolor } from "../tools/color";
+import { parseRGBAfromNumber, RGBAcolor } from "../tools/color";
 import { NoteType } from "./note";
 import { isObject, isNumber, isBoolean } from "lodash";
 import MediaUtils from "../tools/mediaUtils";
+import MathUtils from "@/tools/mathUtils";
 type Image = HTMLImageElement | HTMLCanvasElement;
 interface IResourcePackage {
     tap: HTMLImageElement;
@@ -32,18 +32,57 @@ interface IResourcePackage {
     config: ResourceConfig;
 }
 interface ResourceConfig {
-    hitFxDuration: number; // 打击特效的持续时间，以秒为单位
-    //hitFxScale: number; // 打击特效缩放比例
-    hitFxRotate: boolean; // 打击特效是否随 Note 旋转
-    //hitFxTinted: boolean; // 打击特效是否依照判定线颜色着色
-    hideParticles: boolean; // 打击时是否隐藏方形粒子效果
-    holdKeepHead: boolean; // Hold 触线后是否还显示头部
-    holdRepeat: boolean; // Hold 的中间部分是否采用重复式拉伸
-    holdCompact: boolean; // 是否把 Hold 的头部和尾部与 Hold 中间重叠
-    colorPerfect: RGBAcolor; // AP（全 Perfect）情况下的判定线颜色
-    colorGood: RGBAcolor; // FC（全连）情况下的判定线颜色
+
+    /** 打击特效的持续时间，以秒为单位 */
+    hitFxDuration: number;
+
+    /** 打击特效缩放比例，该属性已经在加载资源包时预先乘以该属性的值 */
+    // hitFxScale: number;
+
+    /** 打击特效是否随 Note 旋转 */
+    hitFxRotate: boolean;
+
+    /** 打击特效是否依照判定线颜色着色，该属性已经在加载资源包时预先给打击特效上了色 */
+    // hitFxTinted: boolean;
+
+    /** 打击时是否隐藏方形粒子效果 */
+    hideParticles: boolean;
+
+    /** Hold 触线后是否还显示头部 */
+    holdKeepHead: boolean;
+
+    /** Hold 的中间部分是否采用重复式拉伸 */
+    holdRepeat: boolean;
+
+    /** 是否把 Hold 的头部和尾部与 Hold 中间重叠 */
+    holdCompact: boolean;
+
+    /** AP（全 Perfect）情况下的判定线颜色 */
+    colorPerfect: RGBAcolor;
+
+    /** FC（全连）情况下的判定线颜色 */
+    colorGood: RGBAcolor;
 }
 const audioContext = new AudioContext();
+
+/* eslint-disable no-magic-numbers */
+const
+    DEFAULT_HITFX = [5, 6] as [number, number],
+    DEFAULT_HOLD_ATLAS = [50, 50] as [number, number],
+    DEFAULT_HOLD_ATLAS_MH = [50, 110] as [number, number],
+    DEFAULT_HITFX_DURATION = 0.5,
+    DEFAULT_HITFX_SCALE = 1.0,
+    DEFAULT_HITFX_ROTATE = false,
+    DEFAULT_HITFX_TINTED = true,
+    DEFAULT_HIDE_PARTICLES = false,
+    DEFAULT_HOLD_KEEPHEAD = false,
+    DEFAULT_HOLD_REPEAT = false,
+    DEFAULT_HOLD_COMPACT = false,
+    DEFAULT_COLOR_PERFECT: RGBAcolor = [0xff, 0xec, 0x9f, 0xe1],
+    DEFAULT_COLOR_GOOD: RGBAcolor = [0xb4, 0xe1, 0xff, 0xeb],
+    HITFX_SIZE = 256;
+/* eslint-enable no-magic-numbers */
+
 export class ResourcePackage implements IResourcePackage {
     tap: HTMLImageElement;
     flick: HTMLImageElement;
@@ -68,34 +107,45 @@ export class ResourcePackage implements IResourcePackage {
     getSkin(noteType: NoteType.Hold, highlight: boolean): { head: HTMLCanvasElement, body: HTMLCanvasElement, end: HTMLCanvasElement };
     getSkin(noteType: NoteType.Tap | NoteType.Drag | NoteType.Flick, highlight: boolean): HTMLImageElement;
     getSkin(noteType: NoteType, highlight: boolean) {
-        if (noteType == NoteType.Drag)
-            if (highlight)
+        if (noteType === NoteType.Drag) {
+            if (highlight) {
                 return this.dragHL;
-            else
+            }
+            else {
                 return this.drag;
-        else if (noteType == NoteType.Flick)
-            if (highlight)
+            }
+        }
+        else if (noteType === NoteType.Flick) {
+            if (highlight) {
                 return this.flickHL;
-            else
+            }
+            else {
                 return this.flick;
-        else if (noteType == NoteType.Tap)
-            if (highlight)
+            }
+        }
+        else if (noteType === NoteType.Tap) {
+            if (highlight) {
                 return this.tapHL;
-            else
+            }
+            else {
                 return this.tap;
+            }
+        }
         else
-            if (highlight)
+            if (highlight) {
                 return {
                     head: this.holdHLHead,
                     body: this.holdHLBody,
                     end: this.holdHLEnd
-                }
-            else
+                };
+            }
+            else {
                 return {
                     head: this.holdHead,
                     body: this.holdBody,
                     end: this.holdEnd
-                }
+                };
+            }
     }
     playSound(noteType: NoteType, volume = 1) {
         switch (noteType) {
@@ -137,11 +187,13 @@ export class ResourcePackage implements IResourcePackage {
         return new Promise<ResourcePackage>((resolve) => {
             const reader = new FileReaderExtends();
             resolve(
-                reader.readAsync(file, 'arraybuffer', function (e: ProgressEvent) {
-                    if (progressHandler)
-                        progressHandler("读取文件: " + formatData(e.loaded) + " / " + formatData(file.size) + " ( " + (e.loaded / file.size * 100).toFixed(p) + "% )");
+                reader.readAsync(file, "arraybuffer", function (e: ProgressEvent) {
+                    if (progressHandler) {
+                        progressHandler("读取文件: " + MathUtils.formatData(e.loaded) + " / " + MathUtils.formatData(file.size) + " ( " + (e.loaded / file.size * 100).toFixed(p) + "% )");
+                    }
                 }).then(async result => {
                     const zip = await JSZip.loadAsync(result);
+
                     /*
                     资源文件必须包括：
                     click.png 和 click_mh.png：Click 音符的皮肤，mh 代表双押；为什么要用click而不是tap啊，tap不是本来的名字吗
@@ -175,22 +227,22 @@ export class ResourcePackage implements IResourcePackage {
                     if (!hitFxPictureFile) throw new Error("Missing hit picture (hit_fx.png)");
                     const info = zip.file(/info\.(yml|json)$/)[0];
                     if (!info) throw new Error("Missing info file (info.yml or info.json)");
-                    const infoContent = await info.async('text');
+                    const infoContent = await info.async("text");
                     const infoObj: unknown = info.name.endsWith(".json") ? JSON.parse(infoContent) : jsyaml.load(infoContent);
                     if (!isObject(infoObj)) throw new Error("Invalid info file");
-                    let hitFx = [5, 6],
-                        holdAtlas = [50, 50],
-                        holdAtlasMH = [50, 110],
-                        hitFxDuration = 0.5,
-                        hitFxScale = 1.0,
-                        hitFxRotate = false,
-                        hitFxTinted = true,
-                        hideParticles = false,
-                        holdKeepHead = false,
-                        holdRepeat = false,
-                        holdCompact = false,
-                        colorPerfect: RGBAcolor = [0xff, 0xec, 0x9f, 0xe1],
-                        colorGood: RGBAcolor = [0xb4, 0xe1, 0xff, 0xeb];
+                    let hitFx: [number, number] = DEFAULT_HITFX,
+                        holdAtlas: [number, number] = DEFAULT_HOLD_ATLAS,
+                        holdAtlasMH: [number, number] = DEFAULT_HOLD_ATLAS_MH,
+                        hitFxDuration = DEFAULT_HITFX_DURATION,
+                        hitFxScale = DEFAULT_HITFX_SCALE,
+                        hitFxRotate = DEFAULT_HITFX_ROTATE,
+                        hitFxTinted = DEFAULT_HITFX_TINTED,
+                        hideParticles = DEFAULT_HIDE_PARTICLES,
+                        holdKeepHead = DEFAULT_HOLD_KEEPHEAD,
+                        holdRepeat = DEFAULT_HOLD_REPEAT,
+                        holdCompact = DEFAULT_HOLD_COMPACT,
+                        colorPerfect: RGBAcolor = DEFAULT_COLOR_PERFECT,
+                        colorGood: RGBAcolor = DEFAULT_COLOR_GOOD;
                     if ("hitFx" in infoObj && isArrayOfNumbers(infoObj.hitFx, 2)) hitFx = infoObj.hitFx;
                     else throw new Error("Missing property hitFx in info file");
                     if ("holdAtlas" in infoObj && isArrayOfNumbers(infoObj.holdAtlas, 2)) holdAtlas = infoObj.holdAtlas;
@@ -205,8 +257,8 @@ export class ResourcePackage implements IResourcePackage {
                     if ("holdKeepHead" in infoObj && isBoolean(infoObj.holdKeepHead)) holdKeepHead = infoObj.holdKeepHead;
                     if ("holdRepeat" in infoObj && isBoolean(infoObj.holdRepeat)) holdRepeat = infoObj.holdRepeat;
                     if ("holdCompact" in infoObj && isBoolean(infoObj.holdCompact)) holdCompact = infoObj.holdCompact;
-                    if ("colorPerfect" in infoObj && isNumber(infoObj.colorPerfect)) colorPerfect = color(infoObj.colorPerfect);
-                    if ("colorGood" in infoObj && isNumber(infoObj.colorGood)) colorGood = color(infoObj.colorGood);
+                    if ("colorPerfect" in infoObj && isNumber(infoObj.colorPerfect)) colorPerfect = parseRGBAfromNumber(infoObj.colorPerfect);
+                    if ("colorGood" in infoObj && isNumber(infoObj.colorGood)) colorGood = parseRGBAfromNumber(infoObj.colorGood);
                     const progress = {
                         tapSound: 0,
                         dragSound: 0,
@@ -220,75 +272,78 @@ export class ResourcePackage implements IResourcePackage {
                         flickHL: 0,
                         holdHL: 0,
                         hitFx: 0
-                    }
+                    };
                     const _showProgress = () => {
-                        if (progressHandler) progressHandler(
-                            "Tap音效已加载" + progress.tapSound.toFixed(p) +
-                            "%\nDrag音效已加载" + progress.flickSound.toFixed(p) +
-                            "%\nFlick音效已加载" + progress.tapSound.toFixed(p) +
-                            "%\n打击特效已加载" + progress.hitFx.toFixed(p) +
-                            "%\nTap皮肤已加载" + progress.tap.toFixed(p) +
-                            "%\nDrag皮肤已加载" + progress.drag.toFixed(p) +
-                            "%\nFlick皮肤已加载" + progress.flick.toFixed(p) +
-                            "%\nHold皮肤已加载" + progress.hold.toFixed(p) +
-                            "%\nTap双押皮肤已加载" + progress.tapHL.toFixed(p) +
-                            "%\nDrag双押皮肤已加载" + progress.dragHL.toFixed(p) +
-                            "%\nFlick双押皮肤已加载" + progress.flickHL.toFixed(p) +
-                            "%\nHold双押皮肤已加载" + progress.holdHL.toFixed(p) + "%"
-                        )
-                    }
-                    const tapSoundPromise = tapSoundFile.async('arraybuffer', meta => {
+                        if (progressHandler) {
+                            progressHandler(
+                                "Tap音效已加载" + progress.tapSound.toFixed(p) +
+                                "%\nDrag音效已加载" + progress.flickSound.toFixed(p) +
+                                "%\nFlick音效已加载" + progress.tapSound.toFixed(p) +
+                                "%\n打击特效已加载" + progress.hitFx.toFixed(p) +
+                                "%\nTap皮肤已加载" + progress.tap.toFixed(p) +
+                                "%\nDrag皮肤已加载" + progress.drag.toFixed(p) +
+                                "%\nFlick皮肤已加载" + progress.flick.toFixed(p) +
+                                "%\nHold皮肤已加载" + progress.hold.toFixed(p) +
+                                "%\nTap双押皮肤已加载" + progress.tapHL.toFixed(p) +
+                                "%\nDrag双押皮肤已加载" + progress.dragHL.toFixed(p) +
+                                "%\nFlick双押皮肤已加载" + progress.flickHL.toFixed(p) +
+                                "%\nHold双押皮肤已加载" + progress.holdHL.toFixed(p) + "%"
+                            );
+                        }
+                    };
+                    const tapSoundPromise = tapSoundFile.async("arraybuffer", meta => {
                         progress.tapSound = meta.percent;
                         _showProgress();
                     }).then(MediaUtils.createAudioBuffer.bind(audioContext));
-                    const dragSoundPromise = dragSoundFile.async('arraybuffer', meta => {
+                    const dragSoundPromise = dragSoundFile.async("arraybuffer", meta => {
                         progress.dragSound = meta.percent;
                         _showProgress();
                     }).then(MediaUtils.createAudioBuffer.bind(audioContext));
-                    const flickSoundPromise = flickSoundFile.async('arraybuffer', meta => {
+                    const flickSoundPromise = flickSoundFile.async("arraybuffer", meta => {
                         progress.flickSound = meta.percent;
                         _showProgress();
                     }).then(MediaUtils.createAudioBuffer.bind(audioContext));
-                    const hitFxImagePromise = hitFxPictureFile.async('blob', meta => {
+                    const hitFxImagePromise = hitFxPictureFile.async("blob", meta => {
                         progress.hitFx = meta.percent;
                         _showProgress();
                     }).then(MediaUtils.createImage);
                     const
-                        tapPromise = tapPictireFile.async('blob', meta => {
+                        tapPromise = tapPictireFile.async("blob", meta => {
                             progress.tap = meta.percent;
                             _showProgress();
                         }).then(MediaUtils.createImage),
-                        dragPromise = dragPictireFile.async('blob', meta => {
+                        dragPromise = dragPictireFile.async("blob", meta => {
                             progress.drag = meta.percent;
                             _showProgress();
                         }).then(MediaUtils.createImage),
-                        flickPromise = flickPictireFile.async('blob', meta => {
+                        flickPromise = flickPictireFile.async("blob", meta => {
                             progress.flick = meta.percent;
                             _showProgress();
                         }).then(MediaUtils.createImage),
-                        holdPromise = holdPictireFile.async('blob', meta => {
+                        holdPromise = holdPictireFile.async("blob", meta => {
                             progress.hold = meta.percent;
                             _showProgress();
                         }).then(MediaUtils.createImage),
-                        tapHLPromise = tapHLPictireFile.async('blob', meta => {
+                        tapHLPromise = tapHLPictireFile.async("blob", meta => {
                             progress.tapHL = meta.percent;
                             _showProgress();
                         }).then(MediaUtils.createImage),
-                        dragHLPromise = dragHLPictireFile.async('blob', meta => {
+                        dragHLPromise = dragHLPictireFile.async("blob", meta => {
                             progress.dragHL = meta.percent;
                             _showProgress();
                         }).then(MediaUtils.createImage),
-                        flickHLPromise = flickHLPictireFile.async('blob', meta => {
+                        flickHLPromise = flickHLPictireFile.async("blob", meta => {
                             progress.flickHL = meta.percent;
                             _showProgress();
                         }).then(MediaUtils.createImage),
-                        holdHLPromise = holdHLPictireFile.async('blob', meta => {
+                        holdHLPromise = holdHLPictireFile.async("blob", meta => {
                             progress.holdHL = meta.percent;
                             _showProgress();
                         }).then(MediaUtils.createImage);
                     const [tapSound, dragSound, flickSound, hitFxImage,
                         tap, drag, flick, hold,
-                        tapHL, dragHL, flickHL, holdHL] = await Promise.all([
+                        tapHL, dragHL, flickHL, holdHL] =
+                        await Promise.all([
                             tapSoundPromise, dragSoundPromise, flickSoundPromise, hitFxImagePromise,
                             tapPromise, dragPromise, flickPromise, holdPromise,
                             tapHLPromise, dragHLPromise, flickHLPromise, holdHLPromise
@@ -320,7 +375,7 @@ export class ResourcePackage implements IResourcePackage {
                     for (let i = 0; i < hitFx[1]; i++) {
                         for (let j = 0; j < hitFx[0]; j++) {
                             const perfectHitFxFrame = new EditableImage(hitFxImage, j * hitFxWidth, i * hitFxHeight, hitFxWidth, hitFxHeight);
-                            perfectHitFxFrame.stretch(256 * hitFxScale, 256 * hitFxScale);
+                            perfectHitFxFrame.stretch(HITFX_SIZE * hitFxScale, HITFX_SIZE * hitFxScale);
                             const goodHitFxFrame = perfectHitFxFrame.clone();
                             const coloredFramePerfect = hitFxTinted ? perfectHitFxFrame.color(colorPerfect) : perfectHitFxFrame;
                             const coloredFrameGood = hitFxTinted ? goodHitFxFrame.color(colorGood) : goodHitFxFrame;
@@ -338,9 +393,9 @@ export class ResourcePackage implements IResourcePackage {
                             holdKeepHead, holdRepeat, holdCompact,
                             colorPerfect, colorGood
                         }
-                    })
+                    });
                 })
             );
-        })
+        });
     }
 }

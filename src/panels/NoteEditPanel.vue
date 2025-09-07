@@ -7,28 +7,6 @@
         <MySelectNoteType
             ref="inputType"
             v-model="inputNote.type"
-            :options="[
-                {
-                    value: NoteType.Tap,
-                    label: '音符类型：Tap',
-                    text: 'Tap',
-                },
-                {
-                    value: NoteType.Drag,
-                    label: '音符类型：Drag',
-                    text: 'Drag',
-                },
-                {
-                    value: NoteType.Flick,
-                    label: '音符类型：Flick',
-                    text: 'Flick',
-                },
-                {
-                    value: NoteType.Hold,
-                    label: '音符类型：Hold',
-                    text: 'Hold',
-                }
-            ]"
             @change="updateModel('type'), createHistory()"
         />
         <MyInput
@@ -171,51 +149,52 @@
     </div>
 </template>
 <script setup lang='ts'>
-import { formatBeats, validateBeats, parseBeats } from '@/models/beats';
-import { onBeforeUnmount, onMounted, reactive, useTemplateRef, watch } from 'vue';
-import { INote, Note, NoteAbove, NoteFake, NoteType } from '../models/note';
-import MyInput from '@/myElements/MyInput.vue';
-import MyInputNumber from '../myElements/MyInputNumber.vue';
-import MySwitch from '../myElements/MySwitch.vue';
-import MyButton from '@/myElements/MyButton.vue';
-import globalEventEmitter from '@/eventEmitter';
-import store from '@/store';
-import MySelectNoteType from '@/myElements/MySelectNoteType.vue';
-import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
+import { formatBeats, makeSureBeatsValid, parseBeats } from "@/models/beats";
+import { onBeforeUnmount, onMounted, reactive, useTemplateRef, watch } from "vue";
+import { INote, Note, NoteAbove, NoteFake } from "../models/note";
+import MyInput from "@/myElements/MyInput.vue";
+import MyInputNumber from "../myElements/MyInputNumber.vue";
+import MySwitch from "../myElements/MySwitch.vue";
+import MyButton from "@/myElements/MyButton.vue";
+import globalEventEmitter from "@/eventEmitter";
+import store from "@/store";
+import MySelectNoteType from "@/myElements/MySelectNoteType.vue";
+import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
 const props = defineProps<{
     titleTeleport: string
 }>();
 const model = defineModel<Note>({
     required: true
 });
-const inputStartEndTime = useTemplateRef('inputStartEndTime');
-const inputType = useTemplateRef('inputType');
-const inputPositionX = useTemplateRef('inputPositionX');
-const inputSize = useTemplateRef('inputSize');
-const inputAlpha = useTemplateRef('inputAlpha');
-const inputSpeed = useTemplateRef('inputSpeed');
-const inputYOffset = useTemplateRef('inputYOffset');
-const inputVisibleTime = useTemplateRef('inputVisibleTime');
-const inputIsFake = useTemplateRef('inputIsFake');
-const inputAbove = useTemplateRef('inputAbove');
+const inputStartEndTime = useTemplateRef("inputStartEndTime");
+const inputType = useTemplateRef("inputType");
+const inputPositionX = useTemplateRef("inputPositionX");
+const inputSize = useTemplateRef("inputSize");
+const inputAlpha = useTemplateRef("inputAlpha");
+const inputSpeed = useTemplateRef("inputSpeed");
+const inputYOffset = useTemplateRef("inputYOffset");
+const inputVisibleTime = useTemplateRef("inputVisibleTime");
+const inputIsFake = useTemplateRef("inputIsFake");
+const inputAbove = useTemplateRef("inputAbove");
 interface NoteExtends {
     startEndTime: string;
 }
 const historyManager = store.useManager("historyManager");
+
 // const mouseManager = store.useManager("mouseManager");
 const seperator = " ";
 const attributes = [
-    'startTime',
-    'endTime',
-    'positionX',
-    'speed',
-    'size',
-    'alpha',
-    'yOffset',
-    'visibleTime',
-    'isFake',
-    'above',
-    'type'
+    "startTime",
+    "endTime",
+    "positionX",
+    "speed",
+    "size",
+    "alpha",
+    "yOffset",
+    "visibleTime",
+    "isFake",
+    "above",
+    "type"
 ] as const;
 watch(model, () => {
     for (const attr of attributes) {
@@ -250,21 +229,24 @@ const inputNote: INote & NoteExtends = reactive({
         if (this.startTime === this.endTime) {
             return formatBeats(this.startTime);
         }
+
         // 否则返回开始时间和结束时间的组合
         return formatBeats(this.startTime) + seperator + formatBeats(this.endTime);
     },
     set startEndTime(value: string) {
         const [start, end] = value.split(seperator);
+
         // 如果连开始时间都没有输入，就不进行任何操作，因为用户可能还没有输入完
         if (!start) return;
-        const startTime = validateBeats(parseBeats(start));
+        const startTime = makeSureBeatsValid(parseBeats(start));
+
         // 如果只输入了一个时间，则将结束时间设置为与开始时间相同
         if (!end) {
             this.startTime = startTime;
             this.endTime = startTime;
             return;
         }
-        const endTime = validateBeats(parseBeats(end));
+        const endTime = makeSureBeatsValid(parseBeats(end));
         this.startTime = startTime;
         this.endTime = endTime;
     }
@@ -281,7 +263,7 @@ const oldValues = {
     isFake: model.value.isFake,
     above: model.value.above,
     type: model.value.type,
-}
+};
 function updateModel<K extends keyof INote>(...attrNames: K[]) {
     // const oldValues = attrNames.map(attr => model.value[attr]);
     // const newValues = attrNames.map(attr => inputNote[attr]);
@@ -292,6 +274,7 @@ function updateModel<K extends keyof INote>(...attrNames: K[]) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (model.value[attrName] as any) = inputNote[attrName];
     }
+
     // historyManager.ungroup();
 }
 function createHistory() {
@@ -302,6 +285,7 @@ function createHistory() {
             historyManager.recordModifyNote(model.value.id, attr, inputNote[attr], oldValues[attr]);
         }
     }
+
     // 把旧值更新，以免重复记录
     for (const attr of attributes) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -322,6 +306,9 @@ onBeforeUnmount(() => {
     globalEventEmitter.off("REVERSE", reverse);
 });
 function reverse() {
-    model.value.positionX = -model.value.positionX;
+    inputNote.positionX = -inputNote.positionX;
+    updateModel("positionX");
+    createHistory();
+    inputPositionX.value?.updateShowedValue();
 }
 </script>

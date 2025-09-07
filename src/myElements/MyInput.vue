@@ -1,11 +1,12 @@
-<!-- 此组件可支持非响应式属性，但必须绑定字符串 -->
 <template>
     <ElInput
+        ref="input"
         v-model="inputData"
         v-bind="$attrs"
+        :type="props.type"
+        :placeholder="props.placeholder"
         @input="inputHandler"
-        @change="emit('change', model)"
-        @blur="blurHandler"
+        @change="changeHandler"
         @keydown.stop
     >
         <template
@@ -37,59 +38,52 @@
 
 <script setup lang="ts">
 import { ElInput } from "element-plus";
-import { ref, useSlots, watch } from "vue";
-const inputData = ref('');
+import { ref, useSlots, useTemplateRef, watch } from "vue";
+const inputData = ref("");
 const emit = defineEmits<{
     input: [string],
-    change: [string]
+    change: [string],
 }>();
+const input = useTemplateRef("input");
 const slots: ReturnType<typeof useSlots> = useSlots();
-// const props = withDefaults(defineProps<{
-//     autoUpdate?: boolean;
-// }>(),{
-//     autoUpdate: true
-// })
 const model = defineModel<string>({
     required: true,
 });
-// const modelWhen = defineModel<unknown>("when", {
-//     required: false
-// });
+const props = defineProps<{
+    placeholder?: string,
+    type?: string,
+}>();
 let isInternalUpdate = false;
-
-// if (isEmpty(modelWhen.value)) {
-//     watch(model, () => {
-//         if (!isInternalUpdate) updateShowedValue();
-//     }, { immediate: true });
-// }
-// else {
-//     watch(modelWhen, () => {
-//         if (!isInternalUpdate) updateShowedValue();
-//     }, { immediate: true });
-// }
 watch(model, () => {
     // 只有外部修改而不是内部修改时才更新
-    if (!isInternalUpdate)
+    if (!isInternalUpdate) {
         updateShowedValue();
+    }
 });
 updateShowedValue();
+
 function updateShowedValue() {
-    inputData.value = model.value;
+    if (inputData.value !== model.value) {
+        inputData.value = model.value;
+    }
+
     // 把内部修改的标记取消
     isInternalUpdate = false;
 }
 function inputHandler() {
     model.value = inputData.value;
+
     // 标记为内部修改
     isInternalUpdate = true;
     emit("input", model.value);
 }
+function changeHandler() {
+    emit("change", model.value);
+    input.value?.$el?.blur();
+}
 function setValueWithoutUpdate(value: string) {
     model.value = value;
     isInternalUpdate = true;
-}
-function blurHandler() {
-    updateShowedValue();
 }
 defineExpose({
     updateShowedValue,

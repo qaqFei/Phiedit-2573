@@ -28,13 +28,22 @@
                 等级
             </template>
         </MyInput>
+        <MyInput 
+            v-model="chartId"
+            disabled
+        >
+            <template #prepend>
+                ID
+            </template>
+        </MyInput>
     </div>
 </template>
 <script setup lang="ts">
-import store from '@/store';
-import MyInput from '../myElements/MyInput.vue';
+import store from "@/store";
+import MyInput from "../myElements/MyInput.vue";
 const props = defineProps<{
     titleTeleport: string
 }>();
 const chart = store.useChart();
+const chartId = store.getChartId();
 </script>

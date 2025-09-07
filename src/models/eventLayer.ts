@@ -1,8 +1,8 @@
-import { isObject, isArray } from "lodash"
-import { NumberEvent, ColorEvent, TextEvent, IEvent } from "./event"
-import { RGBcolor } from "../tools/color"
-import { BPM } from "./beats"
-import ChartError from "./error"
+import { isObject, isArray } from "lodash";
+import { NumberEvent, ColorEvent, TextEvent, IEvent } from "./event";
+import { RGBcolor } from "../tools/color";
+import { BPM } from "./beats";
+import ChartError from "./error";
 interface EventLayerOptions {
     BPMList: BPM[]
     judgeLineNumber: number
@@ -33,23 +33,24 @@ export const extendedEventTypes = [
     "color",
     "paint",
     "text",
+
     // "incline",
     // "shader",
     // "gif",
 ] as const;
 export class BaseEventLayer extends AbstractEventLayer implements IBaseEventLayer {
-    moveXEvents: NumberEvent[] = []
-    moveYEvents: NumberEvent[] = []
-    rotateEvents: NumberEvent[] = []
-    alphaEvents: NumberEvent[] = []
-    speedEvents: NumberEvent[] = []
+    moveXEvents: NumberEvent[] = [];
+    moveYEvents: NumberEvent[] = [];
+    rotateEvents: NumberEvent[] = [];
+    alphaEvents: NumberEvent[] = [];
+    speedEvents: NumberEvent[] = [];
     eventNumbers = {
         moveX: 0,
         moveY: 0,
         rotate: 0,
         alpha: 0,
         speed: 0
-    }
+    };
     toObject() {
         const obj: IBaseEventLayer = {};
         if (this.moveXEvents.length > 0) obj.moveXEvents = this.moveXEvents.map(event => event.toObject());
@@ -78,31 +79,31 @@ export class BaseEventLayer extends AbstractEventLayer implements IBaseEventLaye
 
         switch (type) {
             case "moveX": {
-                const newEvent = new NumberEvent(event, { ...baseConfig, type: 'moveX', id, eventNumber: this.eventNumbers.moveX++ });
+                const newEvent = new NumberEvent(event, { ...baseConfig, type: "moveX", id, eventNumber: this.eventNumbers.moveX++ });
                 this.moveXEvents.push(newEvent);
                 this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "moveY": {
-                const newEvent = new NumberEvent(event, { ...baseConfig, type: 'moveY', id, eventNumber: this.eventNumbers.moveY++ });
+                const newEvent = new NumberEvent(event, { ...baseConfig, type: "moveY", id, eventNumber: this.eventNumbers.moveY++ });
                 this.moveYEvents.push(newEvent);
                 this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "rotate": {
-                const newEvent = new NumberEvent(event, { ...baseConfig, type: 'rotate', id, eventNumber: this.eventNumbers.rotate++ });
+                const newEvent = new NumberEvent(event, { ...baseConfig, type: "rotate", id, eventNumber: this.eventNumbers.rotate++ });
                 this.rotateEvents.push(newEvent);
                 this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "alpha": {
-                const newEvent = new NumberEvent(event, { ...baseConfig, type: 'alpha', id, eventNumber: this.eventNumbers.alpha++ });
+                const newEvent = new NumberEvent(event, { ...baseConfig, type: "alpha", id, eventNumber: this.eventNumbers.alpha++ });
                 this.alphaEvents.push(newEvent);
                 this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "speed": {
-                const newEvent = new NumberEvent(event, { ...baseConfig, type: 'speed', id, eventNumber: this.eventNumbers.speed++ });
+                const newEvent = new NumberEvent(event, { ...baseConfig, type: "speed", id, eventNumber: this.eventNumbers.speed++ });
                 this.speedEvents.push(newEvent);
                 this.errors.push(...newEvent.errors);
                 return newEvent;
@@ -114,22 +115,33 @@ export class BaseEventLayer extends AbstractEventLayer implements IBaseEventLaye
     constructor(eventLayer: unknown, readonly options: EventLayerOptions) {
         super();
         if (isObject(eventLayer)) {
-            if ("moveXEvents" in eventLayer && isArray(eventLayer.moveXEvents))
-                for (const event of eventLayer.moveXEvents)
+            if ("moveXEvents" in eventLayer && isArray(eventLayer.moveXEvents)) {
+                for (const event of eventLayer.moveXEvents) {
                     this.addEvent(event, "moveX");
-            if ("moveYEvents" in eventLayer && isArray(eventLayer.moveYEvents))
-                for (const event of eventLayer.moveYEvents)
+                }
+            }
+            if ("moveYEvents" in eventLayer && isArray(eventLayer.moveYEvents)) {
+                for (const event of eventLayer.moveYEvents) {
                     this.addEvent(event, "moveY");
-            if ("rotateEvents" in eventLayer && isArray(eventLayer.rotateEvents))
-                for (const event of eventLayer.rotateEvents)
+                }
+            }
+            if ("rotateEvents" in eventLayer && isArray(eventLayer.rotateEvents)) {
+                for (const event of eventLayer.rotateEvents) {
                     this.addEvent(event, "rotate");
-            if ("alphaEvents" in eventLayer && isArray(eventLayer.alphaEvents))
-                for (const event of eventLayer.alphaEvents)
+                }
+            }
+            if ("alphaEvents" in eventLayer && isArray(eventLayer.alphaEvents)) {
+                for (const event of eventLayer.alphaEvents) {
                     this.addEvent(event, "alpha");
-            if ("speedEvents" in eventLayer && isArray(eventLayer.speedEvents))
-                for (const event of eventLayer.speedEvents)
+                }
+            }
+            if ("speedEvents" in eventLayer && isArray(eventLayer.speedEvents)) {
+                for (const event of eventLayer.speedEvents) {
                     this.addEvent(event, "speed");
+                }
+            }
         }
+
         // 普通事件层级，要求至少每个种类要有一个垫底的事件
         for (const type of baseEventTypes) {
             const events = this.getEventsByType(type);
@@ -148,23 +160,25 @@ export interface IExtendedEventLayer {
     colorEvents?: IEvent<RGBcolor>[]
     paintEvents?: IEvent<number>[]
     textEvents?: IEvent<string>[]
-    inclineEvents?: IEvent<number>[]// unsupported 
+    inclineEvents?: IEvent<number>[]
 }
+
+/** 暂不支持 paint 和 incline 事件 */
 export class ExtendedEventLayer extends AbstractEventLayer implements IExtendedEventLayer {
-    scaleXEvents: NumberEvent[] = []
-    scaleYEvents: NumberEvent[] = []
-    colorEvents: ColorEvent[] = []
-    paintEvents: NumberEvent[] = []// unsupported
-    textEvents: TextEvent[] = []
-    inclineEvents: NumberEvent[] = []// unsupported
+    scaleXEvents: NumberEvent[] = [];
+    scaleYEvents: NumberEvent[] = [];
+    colorEvents: ColorEvent[] = [];
+    paintEvents: NumberEvent[] = [];
+    textEvents: TextEvent[] = [];
+    inclineEvents: NumberEvent[] = [];
     eventNumbers = {
         scaleX: 0,
         scaleY: 0,
         color: 0,
         paint: 0,
         text: 0,
-        incline: 0 // unsupported
-    }
+        incline: 0
+    };
     toObject() {
         const obj: IExtendedEventLayer = {};
         if (this.scaleXEvents.length > 0) obj.scaleXEvents = this.scaleXEvents.map(event => event.toObject());
@@ -182,7 +196,7 @@ export class ExtendedEventLayer extends AbstractEventLayer implements IExtendedE
             case "color": return this.colorEvents;
             case "paint": return this.paintEvents;
             case "text": return this.textEvents;
-            case "incline": return this.inclineEvents; // unsupported
+            case "incline": return this.inclineEvents;
             default: throw new Error("传入的type参数有误");
         }
     }
@@ -194,36 +208,36 @@ export class ExtendedEventLayer extends AbstractEventLayer implements IExtendedE
         };
         switch (type) {
             case "scaleX": {
-                const newEvent = new NumberEvent(event, { ...baseConfig, type: 'scaleX', id, eventNumber: this.eventNumbers.scaleX++ });
+                const newEvent = new NumberEvent(event, { ...baseConfig, type: "scaleX", id, eventNumber: this.eventNumbers.scaleX++ });
                 this.scaleXEvents.push(newEvent);
                 this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "scaleY": {
-                const newEvent = new NumberEvent(event, { ...baseConfig, type: 'scaleY', id, eventNumber: this.eventNumbers.scaleY++ });
+                const newEvent = new NumberEvent(event, { ...baseConfig, type: "scaleY", id, eventNumber: this.eventNumbers.scaleY++ });
                 this.scaleYEvents.push(newEvent);
                 this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "color": {
-                const newEvent = new ColorEvent(event, { ...baseConfig, type: 'color', id, eventNumber: this.eventNumbers.color++ });
+                const newEvent = new ColorEvent(event, { ...baseConfig, type: "color", id, eventNumber: this.eventNumbers.color++ });
                 this.colorEvents.push(newEvent);
                 this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "paint": {
-                const newEvent = new NumberEvent(event, { ...baseConfig, type: 'paint', id, eventNumber: this.eventNumbers.paint++ });
+                const newEvent = new NumberEvent(event, { ...baseConfig, type: "paint", id, eventNumber: this.eventNumbers.paint++ });
                 this.paintEvents.push(newEvent);
                 this.errors.push(...newEvent.errors);
                 return newEvent;
             }
             case "text": {
-                const newEvent = new TextEvent(event, { ...baseConfig, type: 'text', id, eventNumber: this.eventNumbers.text++ });
+                const newEvent = new TextEvent(event, { ...baseConfig, type: "text", id, eventNumber: this.eventNumbers.text++ });
                 this.textEvents.push(newEvent);
                 return newEvent;
             }
             case "incline": {
-                const newEvent = new NumberEvent(event, { ...baseConfig, type: 'incline', id, eventNumber: this.eventNumbers.incline++ });
+                const newEvent = new NumberEvent(event, { ...baseConfig, type: "incline", id, eventNumber: this.eventNumbers.incline++ });
                 this.inclineEvents.push(newEvent);
                 this.errors.push(...newEvent.errors);
                 return newEvent;
@@ -234,28 +248,40 @@ export class ExtendedEventLayer extends AbstractEventLayer implements IExtendedE
     }
     constructor(eventLayer: unknown, readonly options: EventLayerOptions) {
         super();
-        if (options.eventLayerId != 'X') {
-            throw new Error("特殊事件层级的id只能为X")
+        if (options.eventLayerId !== "X") {
+            throw new Error("特殊事件层级的id只能为X");
         }
         if (isObject(eventLayer)) {
-            if ("scaleXEvents" in eventLayer && isArray(eventLayer.scaleXEvents))
-                for (const event of eventLayer.scaleXEvents)
+            if ("scaleXEvents" in eventLayer && isArray(eventLayer.scaleXEvents)) {
+                for (const event of eventLayer.scaleXEvents) {
                     this.addEvent(event, "scaleX");
-            if ("scaleYEvents" in eventLayer && isArray(eventLayer.scaleYEvents))
-                for (const event of eventLayer.scaleYEvents)
+                }
+            }
+            if ("scaleYEvents" in eventLayer && isArray(eventLayer.scaleYEvents)) {
+                for (const event of eventLayer.scaleYEvents) {
                     this.addEvent(event, "scaleY");
-            if ("colorEvents" in eventLayer && isArray(eventLayer.colorEvents))
-                for (const event of eventLayer.colorEvents)
+                }
+            }
+            if ("colorEvents" in eventLayer && isArray(eventLayer.colorEvents)) {
+                for (const event of eventLayer.colorEvents) {
                     this.addEvent(event, "color");
-            if ("paintEvents" in eventLayer && isArray(eventLayer.paintEvents))
-                for (const event of eventLayer.paintEvents)
+                }
+            }
+            if ("paintEvents" in eventLayer && isArray(eventLayer.paintEvents)) {
+                for (const event of eventLayer.paintEvents) {
                     this.addEvent(event, "paint");
-            if ("textEvents" in eventLayer && isArray(eventLayer.textEvents))
-                for (const event of eventLayer.textEvents)
+                }
+            }
+            if ("textEvents" in eventLayer && isArray(eventLayer.textEvents)) {
+                for (const event of eventLayer.textEvents) {
                     this.addEvent(event, "text");
-            if ("inclineEvents" in eventLayer && isArray(eventLayer.inclineEvents))
-                for (const event of eventLayer.inclineEvents)
+                }
+            }
+            if ("inclineEvents" in eventLayer && isArray(eventLayer.inclineEvents)) {
+                for (const event of eventLayer.inclineEvents) {
                     this.addEvent(event, "incline");
+                }
+            }
         }
     }
 }

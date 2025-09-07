@@ -1,28 +1,33 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
-import HomePage from './views/HomePage.vue'
-import EditorPage from './views/EditorPage.vue'
+import { createRouter, createWebHashHistory } from "vue-router";
+import HomePage from "./views/HomePage.vue";
+import EditorPage from "./views/EditorPage.vue";
 
 const routes = [
+    // 首页
     {
-        path: '/',
-        name: 'Home',
+        path: "/",
+        name: "Home",
         component: HomePage
     },
+
+    // 编辑器界面
     {
-        path: '/editor',
+        path: "/editor",
         name: "Editor",
         component: EditorPage
     },
-    // 添加通配符路由兜底
+
+    // 如果没有此页面，就返回首页
     {
-        path: '/:pathMatch(.*)*',
-        redirect: '/'
+        path: "/:pathMatch(.*)*",
+        redirect: "/"
     }
-]
+];
 
 const router = createRouter({
-    history: createWebHashHistory(process.env.BASE_URL), // 使用history模式
+    // 使用 Hash History 模式
+    history: createWebHashHistory(process.env.BASE_URL), 
     routes
-})
+});
 
-export default router
+export default router;

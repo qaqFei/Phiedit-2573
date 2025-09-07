@@ -1,7 +1,7 @@
 import { addBeats, subBeats } from "@/models/beats";
 import { NumberEvent } from "@/models/event";
 import { Note } from "@/models/note";
-import { SelectedElement } from "@/types";
+import { NoteOrEvent } from "@/models/event";
 import store from "@/store";
 import globalEventEmitter from "@/eventEmitter";
 import Manager from "./abstract";
@@ -12,26 +12,27 @@ export default class MoveManager extends Manager {
         super();
         globalEventEmitter.on("MOVE_LEFT", () => {
             this.moveLeft();
-        })
+        });
         globalEventEmitter.on("MOVE_RIGHT", () => {
             this.moveRight();
-        })
+        });
         globalEventEmitter.on("MOVE_UP", () => {
             this.moveUp();
-        })
+        });
         globalEventEmitter.on("MOVE_DOWN", () => {
             this.moveDown();
-        })
+        });
         globalEventEmitter.on("MOVE_TO_JUDGE_LINE", (targetJudgeLineNumber) => {
             this.moveToJudgeLine(targetJudgeLineNumber);
-        })
+        });
         globalEventEmitter.on("MOVE_TO_PREVIOUS_JUDGE_LINE", createCatchErrorByMessage(() => {
             this.moveToPreviousJudgeLine();
-        }, "移动"))
+        }, "移动"));
         globalEventEmitter.on("MOVE_TO_NEXT_JUDGE_LINE", createCatchErrorByMessage(() => {
             this.moveToNextJudgeLine();
-        }, "移动"))
+        }, "移动"));
     }
+
     /**
      * 左移
      */
@@ -51,6 +52,7 @@ export default class MoveManager extends Manager {
         }
         historyManager.ungroup();
     }
+
     /**
      * 右移
      */
@@ -70,6 +72,7 @@ export default class MoveManager extends Manager {
         }
         historyManager.ungroup();
     }
+
     /**
      * 上移
      */
@@ -94,6 +97,7 @@ export default class MoveManager extends Manager {
         }
         historyManager.ungroup();
     }
+
     /**
      * 下移
      */
@@ -123,7 +127,7 @@ export default class MoveManager extends Manager {
         const stateManager = store.useManager("stateManager");
         const selectionManager = store.useManager("selectionManager");
         const historyManager = store.useManager("historyManager");
-        const elements = new Array<SelectedElement>();
+        const elements = new Array<NoteOrEvent>();
         historyManager.group(`移到${targetJudgeLineNumber}号判定线`);
         for (const element of selectionManager.selectedElements) {
             if (element instanceof Note) {
@@ -144,14 +148,14 @@ export default class MoveManager extends Manager {
     }
     moveToPreviousJudgeLine() {
         const stateManager = store.useManager("stateManager");
-        if (stateManager.state.currentJudgeLineNumber == 0) {
+        if (stateManager.state.currentJudgeLineNumber === 0) {
             throw new Error("当前为第一条判定线，无法移动");
         }
         this.moveToJudgeLine(stateManager.state.currentJudgeLineNumber - 1);
     }
     moveToNextJudgeLine() {
         const stateManager = store.useManager("stateManager");
-        if (stateManager.state.currentJudgeLineNumber == stateManager.judgeLinesCount - 1) {
+        if (stateManager.state.currentJudgeLineNumber === stateManager.judgeLinesCount - 1) {
             throw new Error("当前为最后一条判定线，无法移动");
         }
         this.moveToJudgeLine(stateManager.state.currentJudgeLineNumber + 1);

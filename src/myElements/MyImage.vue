@@ -19,8 +19,8 @@
     </div>
 </template>
 <script setup lang="ts">
-import { useDevicePixelRatio } from '@vueuse/core';
-import { onMounted, useTemplateRef } from 'vue';
+import { useDevicePixelRatio } from "@vueuse/core";
+import { onMounted, useTemplateRef } from "vue";
 
 const props = withDefaults(defineProps<{
     image: string | HTMLImageElement | HTMLCanvasElement
@@ -30,19 +30,26 @@ const props = withDefaults(defineProps<{
     rotate?: "none" | "clockwise" | "anti-clockwise" | "180deg"
 }>(), {
     rotate: "none"
-})
+});
 const canvas = useTemplateRef("canvas");
 const dpr = useDevicePixelRatio().pixelRatio;
 const scale = 1.2;
 const rotationMap = {
+    // 不旋转
     none: 0,
-    clockwise: Math.PI / 2,       // 顺时针 90°
-    'anti-clockwise': -Math.PI / 2, // 逆时针 90°
-    '180deg': Math.PI             // 180°
+
+    // 顺时针 90°
+    clockwise: Math.PI / 2,
+
+    // 逆时针 90°
+    "anti-clockwise": -Math.PI / 2,
+
+    // 180°
+    "180deg": Math.PI
 };
 onMounted(() => {
     const image = (() => {
-        if (typeof props.image == "string") {
+        if (typeof props.image === "string") {
             const image = new Image();
             image.src = props.image;
             return image;
@@ -53,25 +60,11 @@ onMounted(() => {
     })();
     const ctx = canvas.value?.getContext("2d");
     if (!ctx || !canvas.value) {
-        throw new Error('canvas和ctx未加载完成');
+        throw new Error("canvas和ctx未加载完成");
     }
-    if (props.shadow) {
-        // 动态计算阴影参数
-        const blurFactor = 0.03;
-        const offsetFactor = 0;
-
-        const blur = canvas.value.width * blurFactor;
-        const offsetX = canvas.value.width * offsetFactor;
-        const offsetY = canvas.value.height * offsetFactor;
-        // 给图片添加阴影
-        // 设置阴影属性
-        ctx.shadowColor = 'rgba(200, 200, 200, 0.5)'; // 半透明黑色阴影
-        ctx.shadowBlur = blur; // 模糊程度
-        ctx.shadowOffsetX = offsetX; // 水平偏移
-        ctx.shadowOffsetY = offsetY; // 垂直偏移
-    }
+    
     let drawWidth, drawHeight;
-    if (props.rotate === 'clockwise' || props.rotate === 'anti-clockwise') {
+    if (props.rotate === "clockwise" || props.rotate === "anti-clockwise") {
         // 计算缩放后的图片尺寸
         const width1 = canvas.value.height / scale;
         const height1 = width1 / image.width * image.height;
@@ -82,7 +75,8 @@ onMounted(() => {
         if (height1 <= canvas.value.width) {
             drawWidth = width1;
             drawHeight = height1;
-        } else {
+        }
+        else {
             drawWidth = width2;
             drawHeight = height2;
         }
@@ -98,7 +92,8 @@ onMounted(() => {
         if (height1 <= canvas.value.height) {
             drawWidth = width1;
             drawHeight = height1;
-        } else {
+        }
+        else {
             drawWidth = width2;
             drawHeight = height2;
         }
@@ -114,8 +109,9 @@ onMounted(() => {
 
     // 设置阴影
     if (props.shadow) {
-        const blur = canvas.value.width * 0.1;
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+        const blurRatio = 0.1;
+        const blur = canvas.value.width * blurRatio;
+        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
         ctx.shadowBlur = blur;
     }
 
@@ -137,7 +133,7 @@ onMounted(() => {
     ctx.restore();
 
     image.onerror = () => {
-        console.error('图片加载失败');
-    }
-})
+        console.error("图片加载失败");
+    };
+});
 </script>
