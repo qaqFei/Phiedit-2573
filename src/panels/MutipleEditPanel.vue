@@ -50,23 +50,25 @@
             </template>
         </MyDialog>
         <MyDialog open-text="克隆">
-            请选择克隆的目标判定线：{{ cloneManager.options.targetJudgeLines }}
-            <ElCheckboxGroup v-model="cloneManager.options.targetJudgeLines">
-                <ElCheckboxButton
-                    v-for="(_, index) in chart.judgeLineList.length"
-                    :key="index"
-                    :value="index"
-                    :label="index"
-                >
-                    {{ index }}
-                </ElCheckboxButton>
+            请选择克隆的目标判定线：{{ stateManager.cache.clone.targetJudgeLines }}
+            <ElCheckboxGroup v-model="stateManager.cache.clone.targetJudgeLines">
+                <MyGridContainer :columns="10">
+                    <ElCheckboxButton
+                        v-for="(_, index) in chart.judgeLineList.length"
+                        :key="index"
+                        :value="index"
+                        :label="index"
+                    >
+                        {{ index }}
+                    </ElCheckboxButton>
+                </MyGridContainer>
             </ElCheckboxGroup>
-            <MyInputBeats v-model="cloneManager.options.timeDuration">
+            <MyInputBeats v-model="stateManager.cache.clone.timeDuration">
                 <template #prepend>
                     持续时间
                 </template>
             </MyInputBeats>
-            <MyInputBeats v-model="cloneManager.options.timeDelta">
+            <MyInputBeats v-model="stateManager.cache.clone.timeDelta">
                 <template #prepend>
                     克隆时间差
                 </template>
@@ -289,12 +291,13 @@ import { colorToHex } from "@/tools/color";
 import MyInputColor from "@/myElements/MyInputColor.vue";
 import MyInput from "@/myElements/MyInput.vue";
 import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
+import { ElCheckboxButton, ElCheckboxGroup } from "element-plus";
+import MyGridContainer from "@/myElements/MyGridContainer.vue";
 const props = defineProps<{
     titleTeleport: string
 }>();
 const chart = store.useChart();
 const selectionManager = store.useManager("selectionManager");
-const cloneManager = store.useManager("cloneManager");
 const stateManager = store.useManager("stateManager");
 
 const numOfSelectedElements = computed(() => {
@@ -521,6 +524,7 @@ const description = computed(() => {
         if (stateManager.cache.mutipleEdit.mode === "invert") {
             return "";
         }
+
         if (stateManager.cache.mutipleEdit.isDynamic) {
             if (paramType.value === "number") {
                 let str = `以${EasingType[stateManager.cache.mutipleEdit.paramEasing]}缓动从${stateManager.cache.mutipleEdit.paramStart}到${stateManager.cache.mutipleEdit.paramEnd}的值`;
@@ -564,22 +568,26 @@ const description = computed(() => {
             if (stateManager.cache.mutipleEdit.attributeNote === "isFake") {
                 return `将${subject}变为${stateManager.cache.mutipleEdit.paramBoolean ? "假" : "真"}音符`;
             }
+
             if (stateManager.cache.mutipleEdit.attributeNote === "above") {
                 return `将${subject}变为${stateManager.cache.mutipleEdit.paramBoolean ? "正向" : "反向"}音符`;
             }
         }
     }
+
     const sentence = `将${subject}的${attribute}${verb}${value}`;
     return sentence;
 });
 async function clone() {
     globalEventEmitter.emit("CLONE");
 }
+
 function selectionUpdateHandler() {
     const selectedElements = selectionManager.selectedElements;
     if (selectedElements.length === 0) {
         return;
     }
+
     if (selectedElements.every(element => element instanceof Note)) {
         stateManager.cache.mutipleEdit.type = "note";
     }

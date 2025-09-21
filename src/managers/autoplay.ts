@@ -8,7 +8,7 @@ export default class AutoplayManager extends Manager {
     score: number = 0;
     constructor() {
         super();
-        globalEventEmitter.on("RENDER_FRAME", () => {
+        globalEventEmitter.on("AUTOPLAY", () => {
             this.autoplay();
         });
     }
@@ -46,14 +46,14 @@ export default class AutoplayManager extends Manager {
                 if (!note.isFake) {
                     if (seconds >= endSeconds) {
                         combo++;
-                    }
-                    switch (note.getJudgement()) {
-                        case "perfect":
-                            perfect++;
-                            break;
-                        case "good":
-                            good++;
-                            break;
+                        switch (note.getJudgement()) {
+                            case "perfect":
+                                perfect++;
+                                break;
+                            case "good":
+                                good++;
+                                break;
+                        }
                     }
                     realNotes++;
                 }

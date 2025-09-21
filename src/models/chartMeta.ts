@@ -1,5 +1,6 @@
 import { isNumber, isObject, isString } from "lodash";
 import ChartError from "./error";
+import { IObjectizable } from "./objectizable";
 
 export interface IChartMeta {
 
@@ -33,14 +34,17 @@ export interface IChartMeta {
     /** 音乐文件名称 */
     song?: string,
 }
-export class ChartMeta implements IChartMeta {
+
+/** 当前是 0.1.0 版本 */
+const VERSION = 10;
+export class ChartMeta implements IChartMeta, IObjectizable {
     charter = "unknown";
     composer = "unknown";
     illustration = "unknown";
     level = "SP Lv.?";
     name = "unknown";
     offset = 0;
-    RPEVersion = 10;
+    RPEVersion = VERSION;
     readonly is2573 = true;
     readonly errors: ChartError[] = [];
     toObject(): IChartMeta {

@@ -11,6 +11,7 @@
             :filter-method="filterMethod"
             :class="props.class"
             :multiple="props.multiple"
+            placeholder="暂无可用的选项"
             @change="onChange"
             @keydown.stop="onKeyDown"
         >
@@ -23,7 +24,7 @@
                     :value="option.value"
                     :label="option.label"
                     :disabled="option.isDisabled"
-                    @wheel.stop
+                    @wheel.passive.stop
                 >
                     {{ option.text }}
                 </ElOption>
@@ -32,7 +33,7 @@
                     :value="option"
                     :label="option.toString()"
                     :disabled="false"
-                    @wheel.stop
+                    @wheel.passive.stop
                 >
                     {{ option }}
                 </ElOption>
@@ -120,15 +121,20 @@ function filterMethod(value: string) {
             }
         }
     }
-    inputData.value = getValue(filteredOptions.value[0]);
+
+    if (filteredOptions.value.length > 0) {
+        inputData.value = getValue(filteredOptions.value[0]);
+    }
     onChange();
 }
+
 function onKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter") {
         onChange();
         select.value?.blur();
     }
 }
+
 function updateShowedValue() {
     inputData.value = model.value;
 }
@@ -141,10 +147,14 @@ defineExpose({
 .my-select {
     display: flex;
     align-items: center;
-    gap: 10px;
 }
 
 .my-select-label {
     white-space: nowrap;
+}
+
+/* 有子元素时，添加间距 */
+.my-select-label:not(:empty) {
+    margin-right: 10px;
 }
 </style>

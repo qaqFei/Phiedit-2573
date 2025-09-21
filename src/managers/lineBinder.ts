@@ -21,16 +21,18 @@ export default class LineBinder extends Manager {
         if (!stateManager.cache.fastBind.eventLength) {
             throw new Error("请输入事件长度");
         }
+
         const selectedNotes = selectionManager.selectedElements.filter(element => element instanceof Note).sort((note1, note2) => beatsCompare(note1.startTime, note2.startTime));
         if (selectedNotes.length === 0) {
             throw new Error("未选择任何音符");
         }
+
         const lineNumbers = (() => {
             const isSelected = stateManager.cache.fastBind.judgeLinesIsSelected;
             const result: number[] = [];
             for (let lineNumber = 0; lineNumber < isSelected.length; lineNumber++) {
                 const selected = isSelected[lineNumber];
-                if (selected){
+                if (selected) {
                     result.push(lineNumber);
                 }
             }
@@ -42,6 +44,7 @@ export default class LineBinder extends Manager {
                 throw new Error("被绑线的判定线必须是当前判定线的子线");
             }
         }
+
         for (let i = 1; i < selectedNotes.length; i++) {
             const thisNote = selectedNotes[i];
             const previousNote = selectedNotes[i - 1];
@@ -49,6 +52,7 @@ export default class LineBinder extends Manager {
                 throw new Error("被绑线的音符必须在同一条判定线上");
             }
         }
+
         const judgeLineNumber = selectedNotes[0].judgeLineNumber;
         const sourceJudgeLine = store.getJudgeLineById(judgeLineNumber);
 
@@ -82,6 +86,7 @@ export default class LineBinder extends Manager {
                 }
             }
         }
+
         for (let i = 0; i < selectedNotes.length; i++) {
             const bindedNote = selectedNotes[i];
 
@@ -90,7 +95,7 @@ export default class LineBinder extends Manager {
             const bindedLine = store.getJudgeLineById(bindedLineNumber);
             const times: Beats[] = [];
             const yPositions: number[] = [];
-            const notePosition = sourceJudgeLine.getPositionOfSeconds(beatsToSeconds(bindedLine.options.BPMList, bindedNote.startTime));
+            const notePosition = sourceJudgeLine.getFloorPositionOfSeconds(beatsToSeconds(bindedLine.options.BPMList, bindedNote.startTime));
 
             // 计算从开始到音符被判定的时间段内，每个时刻的Y坐标
             // 只从最开始的时间遍历到note被判定时
@@ -98,8 +103,9 @@ export default class LineBinder extends Manager {
             const partEndTime = bindedNote.startTime;
             for (let time = partStartTime; isLessThanOrEqualBeats(time, partEndTime); time = addBeats(time, [0, 1, stateManager.cache.fastBind.precision])) {
                 times.push(time);
-                yPositions.push(sourceJudgeLine.getPositionOfSeconds(beatsToSeconds(bindedLine.options.BPMList, time)));
+                yPositions.push(sourceJudgeLine.getFloorPositionOfSeconds(beatsToSeconds(bindedLine.options.BPMList, time)));
             }
+
             const moveXEvent = store.addEvent({
                 startTime: partStartTime,
                 endTime: partEndTime,

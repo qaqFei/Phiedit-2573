@@ -10,6 +10,8 @@ import JSZip from "jszip";
 import { isObject, isString } from "lodash";
 import { Chart } from "./models/chart";
 import { BPM } from "./models/beats";
+import { autoUpdater } from "electron-updater";
+import { HOUR_TO_MIN, MIN_TO_SEC, SEC_TO_MS } from "./tools/mathUtils";
 const isDevelopment = process.env.NODE_ENV !== "production";
 
 // Scheme must be registered before the app is ready
@@ -20,7 +22,7 @@ protocol.registerSchemesAsPrivileged([
 // interface FolderLike {
 //     file: (string: string) => FileLike | null;
 //     folder: (string: string) => FolderLike | null;
-//     files: 
+//     files:
 // }
 
 // interface FileLike {
@@ -59,9 +61,11 @@ async function createWindow() {
         if (!fs.existsSync(userDataDir)) {
             fs.mkdirSync(userDataDir);
         }
+
         if (!fs.existsSync(chartsDir)) {
             fs.mkdirSync(chartsDir);
         }
+
         if (!fs.existsSync(chartListFile)) {
             fs.writeFileSync(chartListFile, "[]");
         }
@@ -84,11 +88,11 @@ async function createWindow() {
         return `${name}-${time}`;
     }
 
-
     function canBeFileName(name: string) {
         if (CHARS_CANNOT_BE_USED_IN_FILE_NAME_REGEX.test(name)) {
             return false;
         }
+
         if (SYSTEM_FILE_NAMES.includes(name.toLowerCase())) {
             return false;
         }
@@ -150,26 +154,32 @@ async function createWindow() {
                 if (key === "song" || key === "music") {
                     musicPath = value;
                 }
+
                 if (key === "picture" || key === "background") {
                     backgroundPath = value;
                 }
+
                 if (key === "chart") {
                     chartPath = value;
                 }
             }
         }
+
         const texturePaths = [];
         for (const fileName in zip.files) {
             if (IMAGE_REGEX.test(fileName)) {
                 texturePaths.push(fileName);
             }
         }
+
         if (!musicPath) {
             throw new Error("Missing music name");
         }
+
         if (!backgroundPath) {
             throw new Error("Missing background name");
         }
+
         if (!chartPath) {
             throw new Error("Missing chart name");
         }
@@ -178,9 +188,11 @@ async function createWindow() {
         if (!zip.file(musicPath)) {
             throw new Error("Missing music file");
         }
+
         if (!zip.file(backgroundPath)) {
             throw new Error("Missing background file");
         }
+
         if (!zip.file(chartPath)) {
             throw new Error("Missing chart file");
         }
@@ -191,54 +203,9 @@ async function createWindow() {
             texturePaths
         };
     }
-    async function findFileInFolder(folderPath: string) {
-        let musicPath: string | undefined = undefined,
-            backgroundPath: string | undefined = undefined,
-            chartPath: string | undefined = undefined;
 
-        // 异步检查 info.txt 是否存在
-        const infoTxtPath = path.join(folderPath, "info.txt");
-        const hasInfoTxt = await fs.promises.access(infoTxtPath).then(() => true).catch(() => false);
-
-        if (!hasInfoTxt) {
-            const files = await fs.promises.readdir(folderPath);
-            for (const fileName of files) {
-                if (/\.(pec|json)$/.test(fileName)) {
-                    const filePath = path.join(folderPath, fileName);
-                    const fileContent = await fs.promises.readFile(filePath, { encoding: "utf-8" });
-                    const chart: unknown = JSON.parse(fileContent);
-                    if (isObject(chart) &&
-                        "META" in chart && isObject(chart.META) &&
-                        "song" in chart.META && isString(chart.META.song) &&
-                        "background" in chart.META && isString(chart.META.background)) {
-                        chartPath = fileName;
-                        musicPath = fileName.replace(/[^/\\]*$/, "") + chart.META.song;
-                        backgroundPath = fileName.replace(/[^/\\]*$/, "") + chart.META.background;
-                        break;
-                    }
-                }
-            }
-        }
-        else {
-            const info = await fs.promises.readFile(infoTxtPath, { encoding: "utf-8" });
-            const lines = info.split(/[\r\n]+/g);
-            for (const line of lines) {
-                const kv = line.split(":");
-                if (kv.length <= 1) continue;
-                const key = kv[0].trim().toLowerCase();
-                const value = kv[1].trim();
-                if (key === "song" || key === "music") {
-                    musicPath = value;
-                }
-                if (key === "picture" || key === "background") {
-                    backgroundPath = value;
-                }
-                if (key === "chart") {
-                    chartPath = value;
-                }
-            }
-        }
-
+    async function readTextures(chartId: string) {
+        const folderPath = path.join(chartsDir, chartId);
         const texturePaths = [];
         const allFiles = await fs.promises.readdir(folderPath);
         for (const fileName of allFiles) {
@@ -246,34 +213,9 @@ async function createWindow() {
                 texturePaths.push(fileName);
             }
         }
-
-        // 错误检查（异步）
-        if (!musicPath) throw new Error("Missing song name");
-        if (!backgroundPath) throw new Error("Missing picture name");
-        if (!chartPath) throw new Error("Missing chart name");
-
-        const musicWholePath = path.join(folderPath, musicPath);
-        const backgroundWholePath = path.join(folderPath, backgroundPath);
-        const chartWholePath = path.join(folderPath, chartPath);
-
-        // 异步检查文件存在性
-        const [musicExists, backgroundExists, chartExists] = await Promise.all([
-            fs.promises.access(musicWholePath).then(() => true).catch(() => false),
-            fs.promises.access(backgroundWholePath).then(() => true).catch(() => false),
-            fs.promises.access(chartWholePath).then(() => true).catch(() => false)
-        ]);
-
-        if (!musicExists) throw new Error("Missing music file");
-        if (!backgroundExists) throw new Error("Missing background file");
-        if (!chartExists) throw new Error("Missing chart file");
-
-        return {
-            musicPath,
-            backgroundPath,
-            chartPath,
-            texturePaths
-        };
+        return texturePaths;
     }
+
     function createAnEmptyChart(chartName: string) {
         const lines = 24;
         const chart = new Chart(lines);
@@ -295,6 +237,7 @@ async function createWindow() {
 
         return chart;
     }
+
     async function addIdToChartList(chartId: string) {
         const chartList: string[] = JSON.parse(fs.readFileSync(chartListFile, { encoding: "utf-8" }));
 
@@ -302,6 +245,7 @@ async function createWindow() {
         chartList.splice(0, 0, chartId);
         fs.writeFileSync(chartListFile, JSON.stringify(chartList));
     }
+
     async function modifyIdInChartList(chartId: string, newChartId: string) {
         const chartList: string[] = JSON.parse(fs.readFileSync(chartListFile, { encoding: "utf-8" }));
         const index = chartList.indexOf(chartId);
@@ -310,9 +254,10 @@ async function createWindow() {
             fs.writeFileSync(chartListFile, JSON.stringify(chartList));
         }
         else {
-            console.error(`未找到谱面ID：${chartId}`);
+            throw new Error(`未找到谱面ID：${chartId}`);
         }
     }
+
     async function deleteIdFromChartList(chartId: string) {
         const chartList: string[] = JSON.parse(fs.readFileSync(chartListFile, { encoding: "utf-8" }));
 
@@ -323,9 +268,10 @@ async function createWindow() {
             fs.writeFileSync(chartListFile, JSON.stringify(chartList));
         }
         else {
-            console.error(`未找到谱面ID：${chartId}`);
+            throw new Error(`未找到谱面ID：${chartId}`);
         }
     }
+
     async function readChartInfo(chartId: string) {
         ensurePathExists();
         const folderPath = path.join(chartsDir, chartId);
@@ -360,6 +306,7 @@ async function createWindow() {
         }
         return infoObj;
     }
+
     async function writeChartInfo(chartId: string, infoObj: {
         name: string,
         charter: string,
@@ -373,6 +320,7 @@ async function createWindow() {
         const info = `#\nName: ${infoObj.name}\nCharter: ${infoObj.charter}\nComposer: ${infoObj.composer}\nIllustration: ${infoObj.illustration}\nLevel: ${infoObj.level}\nChart: ${infoObj.chart}\nSong: ${infoObj.song}\nPicture: ${infoObj.picture}\n`;
         return await fs.promises.writeFile(path.join(chartsDir, chartId, "info.txt"), info);
     }
+
     async function packageFolderToZip(chartId: string) {
         const zip = new JSZip();
         async function addFolderToZip(zip: JSZip, folderPath: string, relativePath = "") {
@@ -397,17 +345,18 @@ async function createWindow() {
                 }
             }
         }
+
         const folderPath = path.join(chartsDir, chartId);
         await addFolderToZip(zip, folderPath);
         return zip.generateAsync({ type: "uint8array" });
     }
-    async function readResourcePackage() {
+
+    async function loadResourcePackage() {
         const resourcePackagePath = getResourcePath("DefaultResourcePackage.zip");
         const buffer = await fs.promises.readFile(resourcePackagePath);
         const arrayBuffer = buffer.buffer;
         return arrayBuffer;
     }
-
 
     ipcMain.handle("read-chart-list", async () => {
         try {
@@ -416,6 +365,7 @@ async function createWindow() {
             if (!Array.isArray(chartList)) {
                 throw new Error("chartList 读取失败，因为 chartList 不是数组");
             }
+
             if (!chartList.every(isString)) {
                 throw new Error("chartList 读取失败，因为 chartList 中有非字符串的元素");
             }
@@ -427,9 +377,11 @@ async function createWindow() {
             throw err;
         }
     });
+
     ipcMain.handle("read-chart-info", async (event, chartId: string) => {
         return await readChartInfo(chartId);
     });
+
     ipcMain.handle("write-chart-info", async (event, chartId: string, newInfo: {
         name: string,
         charter: string,
@@ -445,29 +397,40 @@ async function createWindow() {
         info.level = newInfo.level;
         return await writeChartInfo(chartId, info);
     });
-    ipcMain.handle("read-chart", async (event, chartId: string) => {
+
+    ipcMain.handle("load-chart", async (event, chartId: string) => {
         ensurePathExists();
         const folderPath = path.join(chartsDir, chartId);
-        const { musicPath, backgroundPath, chartPath, texturePaths } = await findFileInFolder(folderPath);
+        const { song: musicPath, picture: backgroundPath, chart: chartPath } = await readChartInfo(chartId);
+        const texturePaths = await readTextures(chartId);
 
         const musicWholePath = path.join(folderPath, musicPath);
         const backgroundWholePath = path.join(folderPath, backgroundPath);
         const chartWholePath = path.join(folderPath, chartPath);
-        const textureWholePaths = texturePaths.map(path123 => path.join(folderPath, path123));
+        const textureWholePaths = texturePaths.map(texturePath => path.join(folderPath, texturePath));
+        const extraPath = path.join(folderPath, "extra.json");
 
         const musicData = await fs.promises.readFile(musicWholePath);
         const backgroundData = await fs.promises.readFile(backgroundWholePath);
-        const chartContent = await fs.promises.readFile(chartWholePath, ENCODING);
-        const textureDatas = await Promise.all(textureWholePaths.map(path123 => fs.promises.readFile(path123)));
+        const chartContent = await fs.promises.readFile(chartWholePath, ENCODING).catch(() => "");
+        const textureDatas = await Promise.all(textureWholePaths.map(texturePath => fs.promises.readFile(texturePath)));
+        const extraContent = await fs.promises.readFile(extraPath, ENCODING).catch(() => "");
+
+        // 将texturePaths和textureDatas合并为一个对象
+        const textures: Record<string, ArrayBuffer> = {};
+        texturePaths.forEach((path, index) => {
+            textures[path] = textureDatas[index].buffer as ArrayBuffer;
+        });
 
         return {
             musicData: musicData.buffer,
             backgroundData: backgroundData.buffer,
             chartContent,
-            texturePaths,
-            textureDatas: textureDatas.map(data => data.buffer),
+            textures,
+            extraContent
         };
     });
+
     ipcMain.handle("add-chart", async (event, musicPath: string, backgroundPath: string, name: string) => {
         const chartId = createRandomChartId(name);
         const path666 = path.join(chartsDir, chartId);
@@ -489,13 +452,19 @@ async function createWindow() {
         await Promise.all(promises);
         return chartId;
     });
-    ipcMain.handle("save-chart", async (event, chartId: string, chartContent: string) => {
+
+    ipcMain.handle("save-chart", async (event, chartId: string, chartContent: string, extraContent: string) => {
         ensurePathExists();
         const folderPath = path.join(chartsDir, chartId);
-        const { chartPath } = await findFileInFolder(folderPath);
-        fs.writeFileSync(path.join(folderPath, chartPath), chartContent);
+        const chartInfo = await readChartInfo(chartId);
+        const chartPath = chartInfo.chart;
+        const chartWholePath = path.join(folderPath, chartPath);
+        const extraWholePath = path.join(folderPath, "extra.json");
+        fs.writeFileSync(chartWholePath, chartContent, ENCODING);
+        fs.writeFileSync(extraWholePath, extraContent, ENCODING);
     });
-    ipcMain.handle("load-chart", async (event, chartPackagePath: string) => {
+
+    ipcMain.handle("import-chart", async (event, chartPackagePath: string) => {
         ensurePathExists();
         const chartPackageFile = await fs.promises.readFile(chartPackagePath);
         const jszip = await JSZip.loadAsync(chartPackageFile);
@@ -517,8 +486,7 @@ async function createWindow() {
         const backgroundNameInFolder = `${chartId}${backgroundExt}`;
         const chartNameInFolder = `${chartId}${chartExt}`;
 
-        const texturesFiles = texturePathsInZip.map(path123 => jszip.file(path123)!);
-
+        const texturesFiles = texturePathsInZip.map(texturePath => jszip.file(texturePath)!);
 
         const path666 = path.join(chartsDir, chartId);
 
@@ -526,28 +494,38 @@ async function createWindow() {
             return fs.promises.writeFile(path.join(path666, fileName), file);
         }
 
-        // 把musicFile, backgroundFile, chartFile解压到 chartPath 目录下，并添加一个info.txt文件
+        // 把 musicFile, backgroundFile, chartFile 解压到 chartPath 目录下，并添加一个 info.txt 文件
         fs.mkdirSync(path666);
         await Promise.all([
-            musicFile.async("uint8array").then(data => saveFile(musicNameInFolder, data)),
-            backgroundFile.async("uint8array").then(data => saveFile(backgroundNameInFolder, data)),
-            chartFile.async("uint8array").then(data => saveFile(chartNameInFolder, data)),
-            Promise.all(texturesFiles.map(async (textureFile) =>
-                textureFile.async("uint8array").then(data => saveFile(textureFile.name, data)))),
+            musicFile.async("uint8array")
+                .then(data => saveFile(musicNameInFolder, data)),
+            backgroundFile.async("uint8array")
+                .then(data => saveFile(backgroundNameInFolder, data)),
+            chartFile.async("uint8array")
+                .then(data => saveFile(chartNameInFolder, data)),
+            Promise.all(
+                texturesFiles.map(async (textureFile) => {
+                    return textureFile.async("uint8array")
+                        .then(data => saveFile(textureFile.name, data));
+                })
+            ),
             saveFile("info.txt", `#\nName: ${name}\nCharter: unknown\nComposer: unknown\nIllustrator: unknown\nSong: ${musicNameInFolder}\nPicture: ${backgroundNameInFolder}\nChart: ${chartNameInFolder}`)
         ]);
         addIdToChartList(chartId);
         return chartId;
     });
+
     ipcMain.handle("delete-chart", async (event, chartId: string) => {
         // const path666 = path.join(chartsDir, chartId);
         // await fs.promises.rmdir(path666, { recursive: true });
         deleteIdFromChartList(chartId);
     });
-    ipcMain.handle("read-resource-package", async () => {
-        const resourcePackage = await readResourcePackage();
+
+    ipcMain.handle("load-resource-package", async () => {
+        const resourcePackage = await loadResourcePackage();
         return resourcePackage;
     });
+
     ipcMain.handle("show-save-dialog", async (event, name: string) => {
         const result = await dialog.showSaveDialog({
             title: "保存谱面",
@@ -559,6 +537,7 @@ async function createWindow() {
         });
         return result.filePath;
     });
+
     ipcMain.handle("show-open-chart-dialog", async (event, multiple = false) => {
         const properties: Array<"openFile" | "multiSelections"> = ["openFile"];
 
@@ -579,6 +558,7 @@ async function createWindow() {
         }
         return result.filePaths;
     });
+
     ipcMain.handle("show-open-music-dialog", async (event, multiple = false) => {
         const properties: Array<"openFile" | "multiSelections"> = ["openFile"];
 
@@ -599,6 +579,7 @@ async function createWindow() {
         }
         return result.filePaths;
     });
+
     ipcMain.handle("show-open-image-dialog", async (event, multiple = false) => {
         const properties: Array<"openFile" | "multiSelections"> = ["openFile"];
 
@@ -619,17 +600,18 @@ async function createWindow() {
         }
         return result.filePaths;
     });
+
     ipcMain.handle("export-chart", async (event, chartId: string, targetPath: string) => {
         try {
             const data = await packageFolderToZip(chartId);
             return fs.promises.writeFile(targetPath, data);
         }
         catch (error) {
-            console.error("Folder packaging failed:", error);
-            throw error;
+            throw new Error(`导出谱面失败：${error}`);
         }
     });
-    ipcMain.handle("read-settings", async () => {
+
+    ipcMain.handle("load-settings", async () => {
         try {
             const settingsContent = await fs.promises.readFile(settingsFile, "utf-8");
             const settings = JSON.parse(settingsContent);
@@ -639,27 +621,28 @@ async function createWindow() {
             if (error instanceof Error && "code" in error && error.code === "ENOENT") {
                 return null;
             }
-            console.error("Failed to read settings:", error);
-            throw error;
+            throw new Error(`读取设置文件失败：${error}`);
         }
     });
-    ipcMain.handle("write-settings", async (event, settings) => {
+
+    ipcMain.handle("save-settings", async (event, settings) => {
         try {
             await fs.promises.writeFile(settingsFile, JSON.stringify(settings));
         }
         catch (error) {
-            console.error("Failed to write settings:", error);
-            throw error;
+            throw new Error(`写入设置文件失败：${error}`);
         }
     });
+
     ipcMain.handle("add-textures", async (event, chartId: string, texturePaths: string[]) => {
         try {
             const textureArrayBuffers: Record<string, ArrayBufferLike> = {};
             const promises = [];
             for (const texturePath of texturePaths) {
                 if (!IMAGE_REGEX.test(texturePath)) {
-                    throw new Error(`${texturePath} is not a valid image file.`);
+                    throw new Error(`${texturePath} 不是图片文件`);
                 }
+
                 const chartDir = path.join(chartsDir, chartId);
 
                 // 把图片文件复制到chartDir下
@@ -672,23 +655,97 @@ async function createWindow() {
             return textureArrayBuffers;
         }
         catch (error) {
-            console.error("Failed to add textures:", error);
-            throw error;
+            throw new Error(`添加判定线贴图失败：${error}`);
         }
     });
+
     ipcMain.handle("open-chart-folder", async (event, chartId: string) => {
         const chartPath = path.join(chartsDir, chartId);
         shell.openPath(chartPath);
     });
+
     ipcMain.handle("rename-chart-id", async (event, chartId: string, newChartId: string) => {
         if (!canBeFileName(newChartId)) {
-            throw new Error(`无法修改谱面 ID 为 ${newChartId} ，因为它不能被用作文件名`);
+            throw new Error(`无法修改谱面 ID 为 "${newChartId}"，因为它不能被用作文件名`);
         }
         fs.promises.rename(path.join(chartsDir, chartId), path.join(chartsDir, newChartId));
         modifyIdInChartList(chartId, newChartId);
     });
 
+    ipcMain.handle("load-shader-file", async (event, shaderName: string) => {
+        const vshPath = getResourcePath("shaders", `default.vsh`);
+        const fshPath = getResourcePath("shaders", `${shaderName}.glsl`);
+        const vsh = await fs.promises.readFile(vshPath, "utf-8")
+            .catch(() => null);
+        const fsh = await fs.promises.readFile(fshPath, "utf-8")
+            .catch(() => null);
+        return { vsh, fsh };
+    });
 
+    ipcMain.handle("open-external-link", async (event, url: string) => {
+        shell.openExternal(url);
+    });
+
+    autoUpdater.autoDownload = false;
+    autoUpdater.forceDevUpdateConfig = true;
+
+    autoUpdater.on("checking-for-update", () => {
+        // Notify renderer that update check has started
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send("update-checking");
+        });
+    });
+
+    autoUpdater.on("update-available", (info) => {
+        // Notify user that update is available
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send("update-available", info);
+        });
+    });
+
+    autoUpdater.on("update-not-available", (info) => {
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send("update-not-available", info);
+        });
+    });
+
+    autoUpdater.on("download-progress", (progress) => {
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send("update-download-progress", progress);
+        });
+    });
+
+    autoUpdater.on("update-downloaded", (info) => {
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send("update-downloaded", info);
+        });
+    });
+
+    autoUpdater.on("error", (err) => {
+        console.error("autoUpdater 出现错误：", err);
+        BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send("update-error", err);
+        });
+    });
+
+    ipcMain.handle("check-for-updates", async () => {
+        return await autoUpdater.checkForUpdates();
+    });
+
+    ipcMain.handle("download-update", async () => {
+        return await autoUpdater.downloadUpdate();
+    });
+
+    ipcMain.handle("quit-and-install", async () => {
+        return autoUpdater.quitAndInstall();
+    });
+
+    if (process.env.NODE_ENV === "development") {
+        autoUpdater.updateConfigPath = path.join(__dirname, "..", "dev-app-update.yml");
+    }
+
+    // Check for updates periodically
+    setInterval(() => autoUpdater.checkForUpdates(), HOUR_TO_MIN * MIN_TO_SEC * SEC_TO_MS);
 
     // Create the browser window.
     const win = new BrowserWindow({
@@ -708,18 +765,14 @@ async function createWindow() {
         webPreferences: {
             devTools: isDevelopment,
             preload: path.join(__dirname, "preload.js"),
-
-            // Use pluginOptions.nodeIntegration, leave this alone
-            // See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
-            nodeIntegration: (process.env
-                .ELECTRON_NODE_INTEGRATION as unknown) as boolean,
-            contextIsolation: !(process.env
-                .ELECTRON_NODE_INTEGRATION as unknown) as boolean
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false,
+            webSecurity: true,
         },
     });
 
     // Menu.setApplicationMenu(null);
-
 
     win.on("ready-to-show", () => {
         win.maximize();
@@ -764,7 +817,7 @@ app.on("ready", async () => {
             await installExtension(VUEJS3_DEVTOOLS);
         }
         catch (e) {
-            console.error("Vue Devtools failed to install:", String(e));
+            console.error("Vue Devtools 安装失败：", e);
         }
     }
 

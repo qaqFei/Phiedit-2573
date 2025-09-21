@@ -5,6 +5,7 @@
         v-bind="$attrs"
         :type="props.type"
         :placeholder="props.placeholder"
+        :clearable="props.clearable"
         @input="inputHandler"
         @change="changeHandler"
         @keydown.stop
@@ -52,6 +53,7 @@ const model = defineModel<string>({
 const props = defineProps<{
     placeholder?: string,
     type?: string,
+    clearable?: boolean,
 }>();
 let isInternalUpdate = false;
 watch(model, () => {
@@ -70,6 +72,7 @@ function updateShowedValue() {
     // 把内部修改的标记取消
     isInternalUpdate = false;
 }
+
 function inputHandler() {
     model.value = inputData.value;
 
@@ -77,10 +80,12 @@ function inputHandler() {
     isInternalUpdate = true;
     emit("input", model.value);
 }
+
 function changeHandler() {
     emit("change", model.value);
     input.value?.$el?.blur();
 }
+
 function setValueWithoutUpdate(value: string) {
     model.value = value;
     isInternalUpdate = true;

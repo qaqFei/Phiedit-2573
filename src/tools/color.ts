@@ -31,7 +31,7 @@ export function parseRGBAfromNumber(num: number): RGBAcolor {
     if (num > 0xffffffff) {
         throw new Error("数字超出32位");
     }
-    return [(num >>  2 * BYTE_LENGTH) & 0xff, (num >> BYTE_LENGTH) & 0xff, num & 0xff, (num >> 3 * BYTE_LENGTH) & 0xff / 255];
+    return [num >> 2 * BYTE_LENGTH & 0xff, num >> BYTE_LENGTH & 0xff, num & 0xff, num >> 3 * BYTE_LENGTH & 0xff / 255];
 }
 
 export function formatRGBcolor(color: RGBcolor) {
@@ -47,6 +47,7 @@ export function parseRGBcolor(color: string): RGBcolor | null {
         if (color.length < HEX_SHORT_LENGTH) {
             return null;
         }
+
         if (color.length < HEX_LONG_LENGTH) {
             const parts = [];
             for (let index = 1; index < color.length; index++) {
@@ -88,6 +89,7 @@ export function parseRGBcolor(color: string): RGBcolor | null {
         if (split.length !== RGB_LENGTH) {
             return null;
         }
+
         const r = +split[0], g = +split[1], b = +split[2];
         if (isNaN(r) || isNaN(g) || isNaN(b)) {
             return null;
@@ -105,6 +107,7 @@ export function RGBtoRGBA(color: RGBcolor, alpha: number): RGBAcolor {
 }
 
 export function colorToHex(color: RGBcolor): string {
+    // eslint-disable-next-line no-magic-numbers
     return `#${(color[0] | 0).toString(16).padStart(2, "0")}${(color[1] | 0).toString(16).padStart(2, "0")}${(color[2] | 0).toString(16).padStart(2, "0")}`;
 }
 

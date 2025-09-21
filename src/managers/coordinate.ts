@@ -53,15 +53,14 @@ export default class CoordinateManager extends Manager {
         绝对坐标的方向是向上的
     */
 
-
     /** 现在时间点的横线离第0拍的横线有多远，以显示在canvas上的像素为准 */
     get offsetY() {
         const stateManager = store.useManager("stateManager");
         const seconds = store.getSeconds();
-        return stateManager._state.pxPerSecond * seconds;
+        return stateManager._state.verticalZoom * seconds;
     }
 
-    /** 
+    /**
      * 把鼠标点击的y坐标吸附到离鼠标最近的横线上并返回所代表的拍数
      */
     attatchY(y: number): Beats {
@@ -79,7 +78,7 @@ export default class CoordinateManager extends Manager {
     /** 把秒数转为绝对坐标 */
     getAbsolutePositionYOfSeconds(sec: number) {
         const stateManager = store.useManager("stateManager");
-        return sec * stateManager._state.pxPerSecond;
+        return sec * stateManager._state.verticalZoom;
     }
 
     /** 把秒数转为相对坐标 */
@@ -90,7 +89,7 @@ export default class CoordinateManager extends Manager {
     /** 把绝对坐标转为秒数 */
     getSecondsOfAbsolutePositionY(y: number) {
         const stateManager = store.useManager("stateManager");
-        return y / stateManager._state.pxPerSecond;
+        return y / stateManager._state.verticalZoom;
     }
 
     /** 把相对坐标转为秒数 */
@@ -123,28 +122,28 @@ export default class CoordinateManager extends Manager {
     relative(absoluteY: number) {
         return Constants.EDITOR_VIEW_NOTES_VIEWBOX.bottom - absoluteY + this.offsetY;
     }
-    
+
     /** 把谱面坐标系的X坐标转换成canvas坐标系的X坐标 */
     convertXToCanvas(x: number) {
         const canvas = store.useCanvas();
-        return x + (canvas.width / 2);
+        return x + canvas.width / 2;
     }
 
     /** 把谱面坐标系的Y坐标转换成canvas坐标系的Y坐标 */
     convertYToCanvas(y: number) {
         const canvas = store.useCanvas();
-        return (canvas.height / 2) - y;
+        return canvas.height / 2 - y;
     }
 
     /** 把canvas坐标系的X坐标转换成谱面坐标系的X坐标 */
     convertXToChart(x: number) {
         const canvas = store.useCanvas();
-        return x - (canvas.width / 2);
+        return x - canvas.width / 2;
     }
 
     /** 把canvas坐标系的Y坐标转换成谱面坐标系的Y坐标 */
     convertYToChart(y: number) {
         const canvas = store.useCanvas();
-        return (canvas.height / 2) - y;
+        return canvas.height / 2 - y;
     }
 }

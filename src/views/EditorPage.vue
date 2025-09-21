@@ -3,7 +3,7 @@
         <ElHeader id="header">
             <ElScrollbar
                 id="header-inner"
-                @wheel.stop
+                @wheel.passive.stop
             >
                 <div class="audio-player">
                     <audio
@@ -36,9 +36,7 @@
                                     .padStart(2, '0');
                                 return `${min}:${sec}`;
                             }"
-                            @input="
-                                audioRef.pause(),
-                                (audioRef.currentTime = typeof time == 'number' ? time : time[0])"
+                            @input="store.pauseAudio(), store.setTime(time as number)"
                         />
                     </template>
                 </div>
@@ -178,7 +176,7 @@
                 <MyInputNumber
                     v-model="stateManager.state.verticalLineCount"
                     class="vertical-input"
-                    :min="2"
+                    :min="0"
                     :max="100"
                 >
                     <template #prepend>
@@ -215,8 +213,6 @@
                     >
                         {{ i - 1 }}
                     </MyButton>
-                    <!-- <ElTooltip>
-                    <template #default> -->
                     <MyButton
                         type="warning"
                         :plain="stateManager.state.currentEventLayerId != 'X'"
@@ -224,28 +220,6 @@
                     >
                         特殊
                     </MyButton>
-                    <!-- </template>
-                    <template #content>
-                        特殊层级的事件与普通层级不同：<br>
-                        普通层级有4层，特殊层级只有一层<br>
-                        普通层级从左到右分别为：moveX，moveY，rotate，alpha，speed<br>
-                        特殊事件层级从左到右分别为：scaleX，scaleY，color，paint，text<br>
-                        moveX和moveY控制判定线的位置（屏幕范围为X:[-675,675], Y:[-450,450]）<br>
-                        rotate控制判定线的角度（0朝上，90朝右，180朝下，270朝左，还可以斜着）<br>
-                        alpha控制判定线的透明度（0隐藏，128半透明，255完全不透明）<br>
-                        speed控制判定线上面音符的流速（10是一个比较正常的流速）<br>
-                        scaleX和scaleY控制判定线的长度和宽度<br>
-                        color控制判定线的颜色（RGB）<br>
-                        paint暂不支持<br>
-                        text控制判定线显示的文字<br>
-                    </template>
-                </ElTooltip> -->
-                    <!-- <MyButton
-                    type="success"
-                    @click="stateManager.currentJudgeLine.addEventLayer(), update()"
-                >
-                    +
-                </MyButton> -->
                 </MyGridContainer>
                 <MyInputNumber
                     v-model="chart.META.offset"
@@ -264,7 +238,7 @@
         </ElHeader>
         <ElAside
             id="left"
-            @wheel.stop
+            @wheel.passive.stop
         >
             <div
                 v-if="selectionManager.selectedElements.length == 0"
@@ -284,7 +258,7 @@
                         <template #default>
                             <MyButton
                                 type="primary"
-                                @click="catchErrorByMessage(handleExport, '导出')"
+                                @click="catchErrorByMessage(exportChart, '导出')"
                             >
                                 导出谱面
                             </MyButton>
@@ -310,6 +284,12 @@
                     >
                         打开谱面文件夹
                     </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="checkForUpdates"
+                    >
+                        检查更新
+                    </MyButton>
                     <!-- <p style="overflow-y: auto;">
                         A和[：切换到上一条判定线<br>
                         D和]：切换到下一条判定线<br>
@@ -327,7 +307,7 @@
                     <MyButton
                         type="danger"
                         class="delete-chart-button"
-                        @click="confirm(handleDeleteChart, '确定要删除此谱面吗？', '删除谱面')"
+                        @click="confirm(deleteChart, '确定要删除此谱面吗？', '删除谱面')"
                     >
                         删除谱面
                     </MyButton>
@@ -374,7 +354,7 @@
         </ElMain>
         <ElAside
             id="right"
-            @wheel.stop
+            @wheel.passive.stop
         >
             <div
                 v-if="stateManager.state.right == RightPanelState.Default"
@@ -450,23 +430,35 @@
                     >
                         谱面纠错
                     </MyButton>
+                    <MyButton
+                        type="primary"
+                        @click="stateManager.state.right = RightPanelState.Shader"
+                    >
+                        shader编辑
+                    </MyButton>
                 </MyGridContainer>
                 <h3>
                     快速切换判定线
                 </h3>
+                <MyInput
+                    v-model="judgeLineFilter"
+                    class="judge-line-filter-input"
+                    placeholder="筛选判定线"
+                    clearable
+                />
                 <MyGridContainer
                     :columns="5"
                     :gap="5"
                 >
                     <MyButton
-                        v-for="i in stateManager.judgeLinesCount"
-                        :key="i - 1 + (u ? 0 : 0)"
-                        :type="(['primary', 'warning', 'danger', 'success', 'info'] as const)[Math.floor((i - 1) / 10) % 5]"
-                        :plain="i - 1 != stateManager.state.currentJudgeLineNumber"
+                        v-for="judgeLine in filteredJudgeLines"
+                        :key="judgeLine.id + (u ? 0 : 0)"
+                        :type="(['primary', 'warning', 'danger', 'success', 'info'] as const)[Math.floor((judgeLine.id) / 10) % 5]"
+                        :plain="judgeLine.id != stateManager.state.currentJudgeLineNumber"
                         flex
-                        @click="stateManager.state.currentJudgeLineNumber = i - 1, update()"
+                        @click="stateManager.state.currentJudgeLineNumber = judgeLine.id, update()"
                     >
-                        {{ i - 1 }}
+                        {{ judgeLine.id }}
                     </MyButton>
                     <MyButton
                         type="success"
@@ -525,21 +517,21 @@
                     v-else-if="stateManager.state.right === RightPanelState.Error"
                     title-teleport=".title-right"
                 />
+                <ShaderPanel
+                    v-else-if="stateManager.state.right === RightPanelState.Shader"
+                    title-teleport=".title-right"
+                />
             </template>
         </ElAside>
         <ElFooter id="footer">
             <div class="footer-left">
-                <span @click="copyLink($event, 'https://github.com/Chengxuxiaoyuan-2573/Phiedit-2573')">
-                    <a href="https://github.com/Chengxuxiaoyuan-2573/Phiedit-2573">
-                        Phiedit 2573
-                    </a>
-                </span>
+                <MyLink href="https://github.com/Chengxuxiaoyuan-2573/Phiedit-2573">
+                    Phiedit 2573
+                </MyLink>
                 Made By
-                <span @click="copyLink($event, 'https://space.bilibili.com/522248560')">
-                    <a href="https://space.bilibili.com/522248560">
-                        @程序小袁_2573
-                    </a>
-                </span>
+                <MyLink href="https://space.bilibili.com/522248560">
+                    @程序小袁_2573
+                </MyLink>
             </div>
             <div class="footer-right">
                 {{ tip }}
@@ -556,17 +548,16 @@ import {
     ElHeader,
     ElIcon,
     ElMain,
-    ElMessageBox,
     ElSlider,
     ElFooter,
-    ElMessage,
     ElTooltip,
     ElRadioButton,
     ElRadioGroup,
+    ElMessage,
 } from "element-plus";
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { mean, min } from "lodash";
+import { isNumber, mean, min } from "lodash";
 
 import MediaUtils from "@/tools/mediaUtils";
 import KeyboardUtils from "@/tools/keyboardUtils";
@@ -585,27 +576,6 @@ import MyGridContainer from "@/myElements/MyGridContainer.vue";
 import MyImage from "@/myElements/MyImage.vue";
 import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
 
-import ChartRenderer from "@/managers/render/chartRenderer";
-import SaveManager from "@/managers/save";
-import MouseManager from "@/managers/mouse";
-import HistoryManager from "@/managers/history";
-import CloneManager from "@/managers/clone";
-import EditorRenderer from "@/managers/render/editorRenderer";
-import ClipboardManager from "@/managers/clipboard";
-import StateManager, { RightPanelState } from "@/managers/state";
-import MoveManager from "@/managers/move";
-import ExportManager from "@/managers/export";
-import SelectionManager from "@/managers/selection";
-import SettingsManager from "@/managers/settings";
-import ParagraphRepeater from "@/managers/paragraphRepeater";
-import EventAbillitiesManager from "@/managers/eventAbillities";
-import ErrorManager from "@/managers/error";
-import BoxesManager from "@/managers/boxes";
-import NoteFiller from "@/managers/noteFiller";
-import EventFiller from "@/managers/eventFiller";
-import LineBinder from "@/managers/lineBinder";
-import AutoplayManager from "@/managers/autoplay";
-
 import BPMListPanel from "@/panels/BPMListPanel.vue";
 import ChartMetaPanel from "@/panels/ChartMetaPanel.vue";
 import JudgeLinePanel from "@/panels/JudgeLinePanel.vue";
@@ -623,12 +593,16 @@ import ColorEventEditPanel from "@/panels/ColorEventEditPanel.vue";
 import TextEventEditPanel from "@/panels/TextEventEditPanel.vue";
 import ErrorPanel from "@/panels/ErrorPanel.vue";
 
-
 import globalEventEmitter from "@/eventEmitter";
-import store, { audioRef, canvasRef, resourcePackageRef } from "@/store";
+import store, { audioRef, canvasRef, managersMap, resourcePackageRef } from "@/store";
 import Constants from "@/constants";
-import CoordinateManager from "@/managers/coordinate";
-import MutipleEditManager from "@/managers/mutipleEdit";
+import ShaderPanel from "@/panels/ShaderPanel.vue";
+import MyLink from "@/myElements/MyLink.vue";
+import MyInput from "@/myElements/MyInput.vue";
+import { ArrayedObject } from "@/tools/algorithm";
+import { RightPanelState } from "@/managers/state";
+import { SEC_TO_MS } from "@/tools/mathUtils";
+import getKeyHandler from "@/keyHandlers";
 
 const loadStart = inject("loadStart", () => {
     throw new Error("loadStart is not defined");
@@ -643,72 +617,20 @@ loadStart();
 
 // 读取chartPackage
 const chartId = store.getChartId();
-const readResult = await window.electronAPI.readChart(chartId);
-const musicBlob = MediaUtils.arrayBufferToBlob(readResult.musicData);
-const musicSrc = URL.createObjectURL(musicBlob);
-const backgroundBlob = MediaUtils.arrayBufferToBlob(readResult.backgroundData);
-const backgroundSrc = URL.createObjectURL(backgroundBlob);
-const textureBlobs = readResult.textureDatas.map((textureData) =>
-    MediaUtils.arrayBufferToBlob(textureData)
-);
-const textureSrcs = textureBlobs.map((textureBlob) => URL.createObjectURL(textureBlob));
-store.chartPackageRef.value = new ChartPackage({
-    musicSrc,
-    background: (() => {
-        const image = new Image();
-        image.src = backgroundSrc;
-        return image;
-    })(),
-    textures: (() => {
-        const textures: Record<string, HTMLImageElement> = {};
-        for (let i = 0; i < textureSrcs.length; i++) {
-            textures[readResult.texturePaths[i]] = (() => {
-                const image = new Image();
-                image.src = textureSrcs[i];
-                return image;
-            })();
-        }
-        return textures;
-    })(),
-    chart: JSON.parse(readResult.chartContent),
-});
-const chart = store.chartPackageRef.value.chart;
+const readResult = await window.electronAPI.loadChart(chartId);
+
+store.chartPackageRef.value = await ChartPackage.loadFromChartReadResult(readResult);
+
+const { chart, textures } = store.chartPackageRef.value;
 
 // 加载resourcePackage
-store.resourcePackageRef.value = await getResourcePackage();
+store.resourcePackageRef.value = await loadResourcePackage();
 
 // 创建并设置managers
-store.setManager("chartRenderer", new ChartRenderer());
-store.setManager("editorRenderer", new EditorRenderer());
-store.setManager("clipboardManager", new ClipboardManager());
-store.setManager("cloneManager", new CloneManager());
-store.setManager("historyManager", new HistoryManager());
-store.setManager("mouseManager", new MouseManager());
-store.setManager("moveManager", new MoveManager());
-store.setManager("saveManager", new SaveManager());
-store.setManager("selectionManager", new SelectionManager());
-store.setManager("settingsManager", new SettingsManager());
-store.setManager("stateManager", new StateManager());
-store.setManager("paragraphRepeater", new ParagraphRepeater());
-store.setManager("exportManager", new ExportManager());
-store.setManager("eventAbillitiesManager", new EventAbillitiesManager());
-store.setManager("boxesManager", new BoxesManager());
-store.setManager("noteFiller", new NoteFiller());
-store.setManager("eventFiller", new EventFiller());
-store.setManager("lineBinder", new LineBinder());
-store.setManager("autoplayManager", new AutoplayManager());
-store.setManager("errorManager", new ErrorManager());
-store.setManager("coordinateManager", new CoordinateManager());
-store.setManager("mutipleEditManager", new MutipleEditManager());
-
-onBeforeUnmount(() => {
-    // 释放资源
-    URL.revokeObjectURL(musicSrc);
-    URL.revokeObjectURL(backgroundSrc);
-    for (const textureSrc of textureSrcs) {
-        URL.revokeObjectURL(textureSrc);
-    }
+new ArrayedObject(managersMap).forEach((managerName, managerConstructor) => {
+    store.setManager(managerName, new managerConstructor());
 });
+
 loadEnd();
 
 const stateManager = store.useManager("stateManager");
@@ -728,6 +650,122 @@ const tip = ref(Constants.tips[Math.floor(Math.random() * Constants.tips.length)
 const mouseIsInCanvas = ref(false);
 const mouseX = ref(0);
 const mouseY = ref(0);
+const judgeLineFilter = ref("");
+
+const filteredJudgeLines = computed(() => {
+    // 如果过滤条件为空，就直接返回所有的判定线
+    if (judgeLineFilter.value === "") {
+        return [...chart.judgeLineList];
+    }
+
+    const result = chart.judgeLineList.filter(judgeLine => {
+        return judgeLine.id
+            .toString()
+            .toLowerCase()
+            .includes(
+                judgeLineFilter.value
+                    .toLowerCase()
+            ) || judgeLine.Name
+            .toLowerCase()
+            .includes(
+                judgeLineFilter.value
+                    .toLowerCase()
+            );
+    });
+    const parseRanges = (input: string) => {
+        /** 分隔符可以是空格、英文逗号、英文分号、中文逗号、中文顿号、中文分号、英文斜杠、英文反斜杠，英文竖线 */
+        const parts = input.split(/[\s,;，、；/\\|]+/);
+        const result: ({ start: number, end: number } | number)[] = [];
+
+        for (const part of parts) {
+            const rangeMatch = part.match(/^(\d+)(?:-|~)(\d+)$/);
+            if (rangeMatch) {
+                result.push({
+                    start: parseInt(rangeMatch[1]),
+                    end: parseInt(rangeMatch[2])
+                });
+            }
+            else if (/^\d+$/.test(part)) {
+                result.push(parseInt(part));
+            }
+        }
+
+        return result;
+    };
+
+    const ranges = parseRanges(judgeLineFilter.value);
+
+    // 处理范围匹配
+    if (ranges.length > 0) {
+        result.push(...chart.judgeLineList.filter(judgeLine =>
+            ranges.some(range => {
+                if (isNumber(range)) {
+                    return range === judgeLine.id;
+                }
+                else {
+                    return judgeLine.id >= range.start && judgeLine.id <= range.end;
+                }
+            })
+        ));
+    }
+
+    // 根据父线筛选
+    const fatherMatch = judgeLineFilter.value.match(/^(father|parent|dad|daddy):(\d+)/);
+    if (fatherMatch) {
+        result.push(...chart.judgeLineList.filter(judgeLine => judgeLine.father === +fatherMatch[2]));
+    }
+
+    // 根据绑定的 UI 筛选
+    const uiMatch = judgeLineFilter.value.match(/^ui(:(.*))?/);
+    if (uiMatch) {
+        result.push(...chart.judgeLineList.filter(judgeLine => {
+            if (uiMatch[2]) {
+                return judgeLine.attachUI.includes(uiMatch[2]);
+            }
+            else {
+                return judgeLine.attachUI && judgeLine.attachUI !== "none";
+            }
+        }));
+    }
+
+    // 根据贴图筛选
+    const textureMatch = judgeLineFilter.value.match(/^(texture|picture|image)(:(.*))?/);
+    if (textureMatch) {
+        result.push(...chart.judgeLineList.filter(judgeLine => {
+            if (textureMatch[3]) {
+                return judgeLine.Texture.includes(textureMatch[3]);
+            }
+            else {
+                return Object.keys(textures).includes(judgeLine.Texture);
+            }
+        }));
+    }
+
+    // 根据是否有文字事件筛选
+    const textMatch = judgeLineFilter.value.match(/^text/);
+    if (textMatch) {
+        result.push(...chart.judgeLineList.filter(judgeLine => {
+            return judgeLine.extended.textEvents.length > 0;
+        }));
+    }
+
+    // 根据是否有颜色事件筛选
+    const colorMatch = judgeLineFilter.value.match(/^color/);
+    if (colorMatch) {
+        result.push(...chart.judgeLineList.filter(judgeLine => {
+            return judgeLine.extended.colorEvents.length > 0;
+        }));
+    }
+
+    // 根据是否有音符筛选
+    const noteMatch = judgeLineFilter.value.match(/^note/);
+    if (noteMatch) {
+        result.push(...chart.judgeLineList.filter(judgeLine => {
+            return judgeLine.notes.length > 0;
+        }));
+    }
+    return result;
+});
 
 const FPS_THRESHOLDS = {
     HIGH: 60,
@@ -736,6 +774,8 @@ const FPS_THRESHOLDS = {
 };
 const MOUSE_LEFT = 0;
 const MOUSE_RIGHT = 2;
+
+/** 每条 tip 显示 10 秒 */
 const TIP_SHOW_TIME = 10000;
 
 const fpsColor = computed(() => {
@@ -756,18 +796,19 @@ const fpsColor = computed(() => {
 let windowIsFocused = true;
 let cachedRect: DOMRect;
 
+function checkForUpdates() {
+    window.electronAPI.checkForUpdates();
+}
+
 function update() {
     u.value = !u.value;
 }
+
 function openChartFolder() {
     window.electronAPI.openChartFolder(store.getChartId());
 }
-function copyLink(e: MouseEvent, link: string) {
-    e.preventDefault();
-    navigator.clipboard.writeText(link);
-    ElMessage.success("已复制链接至剪贴板，请粘贴至浏览器网址栏打开");
-}
-async function handleExport() {
+
+async function exportChart() {
     const chartName = store.chartPackageRef.value?.chart.META.name || "untitled";
 
     // 使用预加载的 API 替代直接导入
@@ -775,29 +816,35 @@ async function handleExport() {
     if (!filePath) return;
     globalEventEmitter.emit("EXPORT", filePath);
 }
-async function handleDeleteChart() {
+
+async function deleteChart() {
     window.electronAPI.deleteChart(store.getChartId());
     router.push("/");
 }
-async function getResourcePackage() {
-    const arrayBuffer = await window.electronAPI.readResourcePackage();
-    const blob = MediaUtils.arrayBufferToBlob(arrayBuffer);
-    return await ResourcePackage.load(blob);
+
+async function loadResourcePackage() {
+    const arrayBuffer = await window.electronAPI.loadResourcePackage();
+    const resourcePackage = await ResourcePackage.load(arrayBuffer);
+    return resourcePackage;
 }
+
 async function addTextures() {
     const texturePaths = await window.electronAPI.showOpenImageDialog(true);
     if (!texturePaths) {
         throw new Error("操作已取消");
     }
+
     const textureArrayBuffers = await window.electronAPI.addTextures(store.getChartId(), texturePaths);
     const textures: Record<string, HTMLImageElement> = {};
     for (const [name, arrayBuffer] of Object.entries(textureArrayBuffers)) {
         const image = await MediaUtils.createImage(arrayBuffer);
         textures[name] = image;
     }
+
     const chartPackage = store.useChartPackage();
     chartPackage.textures = { ...chartPackage.textures, ...textures };
 }
+
 function canvasMouseDown(e: MouseEvent) {
     const canvas = store.useCanvas();
     const options = KeyboardUtils.createKeyOptions(e);
@@ -805,6 +852,7 @@ function canvasMouseDown(e: MouseEvent) {
     if (x < 0 || x > canvas.width || y < 0 || y > canvas.height) {
         return;
     }
+
     switch (e.button) {
         case MOUSE_LEFT:
             globalEventEmitter.emit("MOUSE_LEFT_CLICK", x, y, options);
@@ -814,6 +862,7 @@ function canvasMouseDown(e: MouseEvent) {
             return;
     }
 }
+
 function canvasMouseMove(e: MouseEvent) {
     const options = KeyboardUtils.createKeyOptions(e);
     const { x, y } = calculatePosition(e);
@@ -821,223 +870,81 @@ function canvasMouseMove(e: MouseEvent) {
     mouseY.value = coordinateManager.convertYToChart(mouseManager.mouseY);
     globalEventEmitter.emit("MOUSE_MOVE", x, y, options);
 }
+
 function canvasMouseUp(e: MouseEvent) {
     const options = KeyboardUtils.createKeyOptions(e);
     const { x, y } = calculatePosition(e);
     globalEventEmitter.emit("MOUSE_UP", x, y, options);
 }
+
 function canvasMouseEnter() {
     mouseIsInCanvas.value = true;
     globalEventEmitter.emit("MOUSE_ENTER");
 }
+
 function canvasMouseLeave() {
     mouseIsInCanvas.value = false;
     globalEventEmitter.emit("MOUSE_LEAVE");
 }
+
 function windowOnWheel(e: WheelEvent) {
     if (e.ctrlKey) {
         e.preventDefault();
         globalEventEmitter.emit("CTRL_WHEEL", e.deltaY);
     }
     else {
-        // audio.currentTime +=
-        //     (e.deltaY * settingsManager.settings.wheelSpeed) / -stateManager.state.pxPerSecond;
         globalEventEmitter.emit("WHEEL", e.deltaY);
     }
 }
+
 function canvasOnResize() {
     const canvas = store.useCanvas();
     cachedRect = canvas.getBoundingClientRect();
 }
+
 async function windowOnKeyDown(e: KeyboardEvent) {
-    const audio = store.useAudio();
     if (e.repeat) {
         return;
     }
-    const key = KeyboardUtils.formatKey(e);
-    console.debug(key);
-    switch (key) {
-        case "Space":
-            MediaUtils.togglePlay(audio);
-            return;
-        case "Q":
-            globalEventEmitter.emit("CHANGE_TYPE", NoteType.Tap);
-            return;
-        case "W":
-            globalEventEmitter.emit("CHANGE_TYPE", NoteType.Drag);
-            return;
-        case "E":
-            globalEventEmitter.emit("CHANGE_TYPE", NoteType.Flick);
-            return;
-        case "R":
-            globalEventEmitter.emit("CHANGE_TYPE", NoteType.Hold);
-            return;
-        case "T": {
-            globalEventEmitter.emit("PREVIEW");
-            const time = audio.currentTime;
 
-            // 松开T键时停止预览
-            const keyUpHandler = (e: KeyboardEvent) => {
-                const key = KeyboardUtils.formatKey(e);
-                if (key === "T") {
-                    globalEventEmitter.emit("STOP_PREVIEW");
-                    audio.currentTime = time;
-                    window.removeEventListener("keyup", keyUpHandler);
-                }
-            };
-            window.addEventListener("keyup", keyUpHandler);
-            return;
-        }
-        case "U": {
-            globalEventEmitter.emit("PREVIEW");
-
-            // 松开U键时停止预览
-            const keyUpHandler = (e: KeyboardEvent) => {
-                const key = KeyboardUtils.formatKey(e);
-                if (key === "U") {
-                    globalEventEmitter.emit("STOP_PREVIEW");
-                    window.removeEventListener("keyup", keyUpHandler);
-                }
-            };
-            window.addEventListener("keyup", keyUpHandler);
-            return;
-        }
-        case "I": {
-            if (stateManager.state.isPreviewing) {
-                globalEventEmitter.emit("STOP_PREVIEW");
-            }
-            else {
-                globalEventEmitter.emit("PREVIEW");
-            }
-            return;
-        }
-        case "[":
-            globalEventEmitter.emit("PREVIOUS_JUDGE_LINE");
-            return;
-        case "]":
-            globalEventEmitter.emit("NEXT_JUDGE_LINE");
-            return;
-        case "A":
-            globalEventEmitter.emit("PREVIOUS_JUDGE_LINE");
-            return;
-        case "D":
-            globalEventEmitter.emit("NEXT_JUDGE_LINE");
-            return;
-        case "Esc":
-            globalEventEmitter.emit("UNSELECT_ALL");
-            return;
-        case "Del":
-            globalEventEmitter.emit("DELETE");
-            return;
-        case "Up":
-            globalEventEmitter.emit("MOVE_UP");
-            return;
-        case "Down":
-            globalEventEmitter.emit("MOVE_DOWN");
-            return;
-        case "Left":
-            globalEventEmitter.emit("MOVE_LEFT");
-            return;
-        case "Right":
-            globalEventEmitter.emit("MOVE_RIGHT");
-            return;
-        case "Ctrl B":
-            e.preventDefault();
-            globalEventEmitter.emit("PASTE_MIRROR");
-            return;
-        case "Ctrl S":
-            e.preventDefault();
-            globalEventEmitter.emit("SAVE");
-            return;
-        case "Ctrl A":
-            e.preventDefault();
-            globalEventEmitter.emit("SELECT_ALL");
-            return;
-        case "Ctrl X":
-            e.preventDefault();
-            globalEventEmitter.emit("CUT");
-            return;
-        case "Ctrl C":
-            e.preventDefault();
-            globalEventEmitter.emit("COPY");
-            return;
-        case "Ctrl V":
-            e.preventDefault();
-            globalEventEmitter.emit("PASTE");
-            return;
-        case "Ctrl M":
-            e.preventDefault();
-            globalEventEmitter.emit(
-                "MOVE_TO_JUDGE_LINE",
-                parseInt((await ElMessageBox.prompt("请输入判定线号", "移动到指定判定线")).value)
-            );
-            return;
-        case "Ctrl [":
-            e.preventDefault();
-            globalEventEmitter.emit("MOVE_TO_PREVIOUS_JUDGE_LINE");
-            return;
-        case "Ctrl ]":
-            e.preventDefault();
-            globalEventEmitter.emit("MOVE_TO_NEXT_JUDGE_LINE");
-            return;
-        case "Ctrl Shift V":
-            e.preventDefault();
-            globalEventEmitter.emit("REPEAT");
-            return;
-        case "Ctrl Z":
-            e.preventDefault();
-            globalEventEmitter.emit("UNDO");
-            return;
-        case "Ctrl Y":
-            e.preventDefault();
-            globalEventEmitter.emit("REDO");
-            return;
-        case "Ctrl D":
-            e.preventDefault();
-            globalEventEmitter.emit("DISABLE");
-            return;
-        case "Ctrl E":
-            e.preventDefault();
-            globalEventEmitter.emit("ENABLE");
-            return;
-        case "Alt A":
-            globalEventEmitter.emit("REVERSE");
-            return;
-        case "Alt S":
-            globalEventEmitter.emit("SWAP");
-            return;
-        case "Alt D":
-            globalEventEmitter.emit("STICK");
-            return;
-        case "Alt R":
-            globalEventEmitter.emit("RANDOM");
-            return;
-    }
+    const handler = getKeyHandler(e, "keydown");
+    handler();
 }
+
+async function windowOnKeyUp(e: KeyboardEvent) {
+    const handler = getKeyHandler(e, "keyup");
+    handler();
+}
+
 function documentOnContextmenu(e: Event) {
     e.preventDefault();
 }
+
 function windowOnBlur() {
     const audio = store.useAudio();
     audio.pause();
     windowIsFocused = false;
 }
+
 function windowOnFocus() {
     windowIsFocused = true;
 }
+
 function audioOnTimeUpdate() {
     const audio = store.useAudio();
     time.value = audio.currentTime;
 }
+
 function audioOnPause() {
     audioIsPlaying.value = false;
 }
+
 function audioOnPlay() {
     audioIsPlaying.value = true;
 }
 
 /**
- * 该函数用于在含有object-fit:contain的canvas上，
+ * 该函数用于在含有 object-fit:contain 样式的 canvas 上，
  * 根据MouseEvent对象计算出点击位置在canvas绘制上下文中的坐标
  * 解决了由于canvas外部尺寸与内部绘制尺寸不一致导致的坐标偏移问题
  */
@@ -1089,8 +996,9 @@ onMounted(() => {
     canvas.addEventListener("mouseleave", canvasMouseLeave);
     const resizeObserver = new ResizeObserver(canvasOnResize);
     resizeObserver.observe(canvas);
-    window.addEventListener("wheel", windowOnWheel, { passive: false });
+    window.addEventListener("wheel", windowOnWheel);
     window.addEventListener("keydown", windowOnKeyDown);
+    window.addEventListener("keyup", windowOnKeyUp);
     window.addEventListener("blur", windowOnBlur);
     window.addEventListener("focus", windowOnFocus);
     document.oncontextmenu = documentOnContextmenu;
@@ -1108,8 +1016,10 @@ onMounted(() => {
                     const chart = store.useChart();
                     chart.highlightNotes();
                 }
+
                 try {
                     globalEventEmitter.emit("RENDER_FRAME");
+                    globalEventEmitter.emit("AUTOPLAY");
                     if (stateManager.state.isPreviewing) {
                         globalEventEmitter.emit("RENDER_CHART");
                     }
@@ -1118,13 +1028,14 @@ onMounted(() => {
                     }
                 }
                 catch (error) {
-                    console.error(error);
+                    ElMessage.error(error as Error);
                 }
+
                 const now = performance.now();
                 const delta = now - renderTime;
 
                 if (delta > 0) {
-                    const currentFPS = 1000 / delta;
+                    const currentFPS = SEC_TO_MS / delta;
                     fpsList.push(currentFPS);
                     if (fpsList.length >= showFpsFrequency) {
                         fps.value = mean(fpsList);
@@ -1138,14 +1049,22 @@ onMounted(() => {
                 if (combo.value !== autoplayManager.combo) {
                     combo.value = autoplayManager.combo;
                 }
+
                 if (score.value !== autoplayManager.score) {
                     score.value = autoplayManager.score;
                 }
                 audio.volume = settingsManager._settings.musicVolume;
             }
-            requestAnimationFrame(renderLoop);
+
+            if (settingsManager._settings.unlimitFps) {
+                setTimeout(renderLoop);
+            }
+            else {
+                requestAnimationFrame(renderLoop);
+            }
         }
     };
+
     const tipInterval = setInterval(() => {
         tip.value = Constants.tips[Math.floor(Math.random() * Constants.tips.length)];
     }, TIP_SHOW_TIME);
@@ -1176,9 +1095,10 @@ onMounted(() => {
         canvas.remove();
         store.chartPackageRef.value = null;
         store.resourcePackageRef.value = null;
-        store.audioRef.value = null;
         store.canvasRef.value = null;
+        store.audioRef.value = null;
         store.route = null;
+
         for (const key in store.managers) {
             store.managers[key as keyof typeof store.managers] = null;
         }
@@ -1219,8 +1139,6 @@ onMounted(() => {
     width: 100%;
     height: 100%;
     display: grid;
-    /* --w: calc(100% / 4.6);
-    grid-template-columns: calc(1.6 * var(--w)) repeat(3, var(--w)); */
     grid-template-columns: 1.5fr repeat(3, 1fr);
     grid-template-rows: 1fr 1fr 1fr;
     grid-template-areas:
@@ -1280,7 +1198,7 @@ onMounted(() => {
 /* .note-type-select .el-radio-button {
     border-radius: var(--el-border-radius-base) !important;
     overflow: hidden;
-    --el-border: 100px solid black; 
+    --el-border: 100px solid black;
 } */
 
 .note-type-select .el-radio-button p {
@@ -1313,7 +1231,6 @@ onMounted(() => {
 #left {
     grid-area: left;
 }
-
 
 #right {
     grid-area: right;
@@ -1381,6 +1298,9 @@ onMounted(() => {
 }
 
 .footer-left {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     max-width: 35vw;
 }
 

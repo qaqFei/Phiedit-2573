@@ -18,11 +18,19 @@
     },
     "main": "dist_electron/bundled/background.js",
     "dependencies": {
+        "@codemirror/autocomplete": "^6.18.7",
+        "@codemirror/lang-javascript": "^6.2.4",
+        "@codemirror/language": "^6.11.3",
+        "@codemirror/state": "^6.5.2",
+        "@codemirror/view": "^6.38.2",
         "@floating-ui/dom": "^1.7.0",
         "@popperjs/core": "^2.11.8",
         "@vue/shared": "^3.5.13",
         "@vueuse/core": "^13.1.0",
         "core-js": "^3.42.0",
+        "dompurify": "^3.2.7",
+        "electron-log": "^5.4.3",
+        "electron-updater": "^6.6.2",
         "element-plus": "^2.9.9",
         "js-yaml": "^4.1.0",
         "jszip": "^3.10.1",
@@ -30,6 +38,7 @@
         "mathjs": "^14.2.0",
         "path": "^0.12.7",
         "vue": "^3.2.13",
+        "vue-codemirror": "^6.1.1",
         "vue-router": "^4.5.1"
     },
     "devDependencies": {
@@ -64,70 +73,6 @@
         "ts-loader": "^8.4.0",
         "typescript": "^5.5.4",
         "vue-cli-plugin-electron-builder": "^2.1.1"
-    },
-    "babel": {
-        "presets": [
-            "@vue/cli-plugin-babel/preset",
-            [
-                "@babel/preset-env",
-                {
-                    "targets": {
-                        "browsers": [
-                            "last 2 versions",
-                            "ie >= 11"
-                        ],
-                        "node": "current"
-                    },
-                    "useBuiltIns": "usage",
-                    "corejs": 3
-                }
-            ],
-            "@babel/preset-typescript"
-        ],
-        "plugins": [
-            [
-                "@babel/plugin-proposal-async-generator-functions"
-            ],
-            [
-                "@babel/plugin-syntax-top-level-await"
-            ]
-        ]
-    },
-    "eslintConfig": {
-        "root": true,
-        "env": {
-            "node": true,
-            "es2021": true
-        },
-        "extends": [
-            "eslint:recommended",
-            "plugin:vue/vue3-recommended",
-            "plugin:@typescript-eslint/recommended"
-        ],
-        "parser": "vue-eslint-parser",
-        "parserOptions": {
-            "parser": "@typescript-eslint/parser",
-            "ecmaVersion": 2020,
-            "sourceType": "module"
-        },
-        "plugins": [
-            "vue",
-            "@typescript-eslint"
-        ],
-        "rules": {
-            "vue/html-indent": [
-                "error",
-                4
-            ]
-        },
-        "overrides": [
-            {
-                "files": [
-                    "*.vue"
-                ],
-                "parser": "vue-eslint-parser"
-            }
-        ]
     },
     "browserslist": [
         "> 1%",

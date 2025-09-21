@@ -8,13 +8,14 @@ import { RGBcolor, invert } from "@/tools/color";
 import Manager from "./abstract";
 import { NoteNumberAttrs } from "./state";
 import globalEventEmitter from "@/eventEmitter";
+import { createCatchErrorByMessage } from "@/tools/catchError";
 
 export default class MutipleEditManager extends Manager {
     constructor() {
         super();
-        globalEventEmitter.on("MUTIPLE_EDIT", () => {
+        globalEventEmitter.on("MUTIPLE_EDIT", createCatchErrorByMessage(() => {
             this.mutipleEdit();
-        });
+        }, "批量编辑"));
     }
     mutipleEdit() {
         const selectionManager = store.useManager("selectionManager");
@@ -51,6 +52,7 @@ export default class MutipleEditManager extends Manager {
                 modifyEventWithNumber(event, "end", value, mode);
                 return;
             }
+
             let newValue: number;
             const randomRange = stateManager.cache.mutipleEdit.isRandom ? stateManager.cache.mutipleEdit.paramRandom : 0;
             const randomNumber = Math.random() * randomRange * 2 - randomRange;
@@ -73,12 +75,14 @@ export default class MutipleEditManager extends Manager {
             historyManager.recordModifyEvent(event.id, attr, newValue, event[attr]);
             event[attr] = newValue;
         }
+
         function modifyEventWithColor(event: ColorEvent, attr: "start" | "end" | "both", value: RGBcolor, mode: "to" | "by" | "times" | "invert" | "random" = "to") {
             if (attr === "both") {
                 modifyEventWithColor(event, "start", value, mode);
                 modifyEventWithColor(event, "end", value, mode);
                 return;
             }
+
             let newValue: RGBcolor;
             switch (mode) {
                 case "to":
@@ -93,12 +97,14 @@ export default class MutipleEditManager extends Manager {
             historyManager.recordModifyEvent(event.id, attr, newValue, event[attr]);
             event[attr] = newValue;
         }
+
         function modifyEventWithText(event: TextEvent, attr: "start" | "end" | "both", value: string, mode: "to" | "by" | "times" | "invert" | "random" = "to") {
             if (attr === "both") {
                 modifyEventWithText(event, "start", value, mode);
                 modifyEventWithText(event, "end", value, mode);
                 return;
             }
+
             let newValue: string;
             switch (mode) {
                 case "to":
@@ -214,6 +220,7 @@ export default class MutipleEditManager extends Manager {
                     }
                 });
             }
+
             if (!isSucceeded) {
                 throw new Error(`当前没有选中${stateManager.cache.mutipleEdit.eventTypes.join("、")}事件`);
             }

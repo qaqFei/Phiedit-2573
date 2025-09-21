@@ -7,7 +7,7 @@ export default class KeyboardUtils {
             meta: e.metaKey,
         };
     }
-    
+
     /**
      * 将键盘事件对象格式化为可读的按键组合字符串
      *
@@ -24,12 +24,15 @@ export default class KeyboardUtils {
         if (e.key === "Control") {
             return "Ctrl";
         }
+
         if (e.key === "Shift") {
             return "Shift";
         }
+
         if (e.key === "Alt") {
             return "Alt";
         }
+
         if (e.key === "Meta") {
             return "Meta";
         }

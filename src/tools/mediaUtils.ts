@@ -1,3 +1,5 @@
+import { isString } from "lodash";
+
 export default class MediaUtils {
     static playSound(this: AudioContext, audioBuffer: AudioBuffer, time = 0, volume = 1) {
         if (time >= audioBuffer.duration) return;
@@ -29,16 +31,23 @@ export default class MediaUtils {
         }
         return audioBuffer;
     }
-    static createImage(imageData: Blob | ArrayBuffer) {
-        const blob = imageData instanceof Blob ? imageData : MediaUtils.arrayBufferToBlob(imageData);
+    static createImage(imageData: Blob | ArrayBuffer | string) {
+        const objectUrl = (() => {
+            if (isString(imageData)) {
+                return imageData;
+            }
+
+            const blob = imageData instanceof Blob ? imageData : MediaUtils.arrayBufferToBlob(imageData);
+            return URL.createObjectURL(blob);
+        })();
         return new Promise<HTMLImageElement>((resolve, reject) => {
-            const objectUrl = URL.createObjectURL(blob);
             const image = new Image();
             image.src = objectUrl;
             image.onload = () => {
                 URL.revokeObjectURL(objectUrl);
                 resolve(image);
             };
+
             image.onerror = (e) => {
                 URL.revokeObjectURL(objectUrl);
                 reject(e);
@@ -55,6 +64,7 @@ export default class MediaUtils {
                 URL.revokeObjectURL(objectUrl);
                 resolve(audio);
             };
+
             audio.onerror = (e) => {
                 URL.revokeObjectURL(objectUrl);
                 reject(e);

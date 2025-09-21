@@ -6,6 +6,7 @@ import { Note, NoteType } from "@/models/note";
 import { addBeats, isEqualBeats, isGreaterThanBeats, isGreaterThanOrEqualBeats, isLessThanBeats, isLessThanOrEqualBeats } from "@/models/beats";
 import { BaseEventLayer, baseEventTypes, extendedEventTypes } from "@/models/eventLayer";
 import Constants from "@/constants";
+import { SEC_TO_MS } from "@/tools/mathUtils";
 
 export default class ErrorManager extends Manager {
     errors: ChartError[] = [];
@@ -17,14 +18,22 @@ export default class ErrorManager extends Manager {
         globalEventEmitter.on("AUTO_FIX_ERRORS", () => {
             this.autoFix();
         });
+        globalEventEmitter.on("HISTORY_UPDATE", () => {
+            const settingsManager = store.useManager("settingsManager");
+            if (settingsManager._settings.autoCheckErrors) {
+                this.checkErrors();
+            }
+        });
     }
     private checkChartReadErrors() {
-        const chart = store.useChart();
-        for (let i = 0; i < chart.errors.length; i++) {
+        // 获取谱面压缩包的所有错误
+        const chartPackage = store.useChartPackage();
+        for (let i = 0; i < chartPackage.errors.length; i++) {
             if (i >= 100) {
                 return;
             }
-            const error = chart.errors[i];
+
+            const error = chartPackage.errors[i];
             this.errors.push(error);
         }
     }
@@ -65,6 +74,7 @@ export default class ErrorManager extends Manager {
                     ));
                 }
             }
+
             for (const note of notes) {
                 // 检查非Hold音符有没有结束时间不等于起始时间的
                 if (note.type !== NoteType.Hold && !isEqualBeats(note.endTime, note.startTime)) {
@@ -77,7 +87,7 @@ export default class ErrorManager extends Manager {
                 }
 
                 // 检查音符有没有超出时间范围的
-                if (note.cachedEndSeconds + chart.META.offset / 1000 < 0) {
+                if (note.cachedEndSeconds + chart.META.offset / SEC_TO_MS < 0) {
                     this.errors.push(new ChartError(
                         `音符时间超出范围，位于音乐开始之前`,
                         "ChartEditError.NoteOutOfRange",
@@ -85,7 +95,8 @@ export default class ErrorManager extends Manager {
                         note
                     ));
                 }
-                if (note.cachedStartSeconds + chart.META.offset / 1000 > audio.duration) {
+
+                if (note.cachedStartSeconds + chart.META.offset / SEC_TO_MS > audio.duration) {
                     this.errors.push(new ChartError(
                         `音符时间超出范围，位于音乐结束之后`,
                         "ChartEditError.NoteOutOfRange",
@@ -170,6 +181,7 @@ export default class ErrorManager extends Manager {
                         ));
                     }
                 }
+
                 for (let j = 0; j < flicks.length; j++) {
                     const flick = flicks[j];
                     if (Math.abs(tap.positionX - flick.positionX) < settingsManager._settings.noteSize &&
@@ -209,6 +221,7 @@ export default class ErrorManager extends Manager {
                             }
                         }
                     }
+
                     for (let i = 0; i < events.length; i++) {
                         const event = events[i];
 
@@ -221,6 +234,7 @@ export default class ErrorManager extends Manager {
                                 event
                             ));
                         }
+
                         if (event.type === "paint") {
                             this.errors.push(new ChartError(
                                 `出现了本软件不支持的 paint 事件`,
@@ -229,7 +243,8 @@ export default class ErrorManager extends Manager {
                                 event
                             ));
                         }
-                        if (event.cachedEndSeconds + chart.META.offset / 1000 < 0) {
+
+                        if (event.cachedEndSeconds + chart.META.offset / SEC_TO_MS < 0) {
                             this.errors.push(new ChartError(
                                 `事件时间超出范围，位于音乐开始之前`,
                                 "ChartEditError.EventOutOfRange",
@@ -237,7 +252,8 @@ export default class ErrorManager extends Manager {
                                 event
                             ));
                         }
-                        if (event.cachedStartSeconds + chart.META.offset / 1000 > audio.duration) {
+
+                        if (event.cachedStartSeconds + chart.META.offset / SEC_TO_MS > audio.duration) {
                             this.errors.push(new ChartError(
                                 `事件时间超出范围，位于音乐结束之后`,
                                 "ChartEditError.EventOutOfRange",
@@ -245,6 +261,7 @@ export default class ErrorManager extends Manager {
                                 event
                             ));
                         }
+
                         if (event.easingLeft >= event.easingRight) {
                             this.errors.push(new ChartError(
                                 `事件缓动截取错误，左边界必须小于右边界`,
@@ -253,6 +270,7 @@ export default class ErrorManager extends Manager {
                                 event
                             ));
                         }
+
                         if (event.isDisabled) {
                             this.errors.push(new ChartError(
                                 `事件已禁用，请在导出谱面前删除该事件`,
@@ -304,7 +322,7 @@ export default class ErrorManager extends Manager {
                     if (!(error.objects[0] instanceof Note)) {
                         break;
                     }
-                    
+
                     historyManager.recordRemoveNote(error.objects[0].toObject(), error.objects[0].judgeLineNumber, error.objects[0].id);
                     store.removeNote(error.objects[0].id);
                     isSucceeded = true;
@@ -350,6 +368,7 @@ export default class ErrorManager extends Manager {
                     isSucceeded = true;
                     break;
             }
+
             if (isSucceeded) {
                 this.errors.splice(i, 1);
                 fixedErrors++;

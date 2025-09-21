@@ -1,11 +1,12 @@
 import { isObject, isNumber, isString, isArray } from "lodash";
-import { EasingType } from "./easing";
+import { calculateDisplacement, EasingType } from "./easing";
 import { BaseEventLayer, baseEventTypes, ExtendedEventLayer, extendedEventTypes, IBaseEventLayer, IExtendedEventLayer } from "./eventLayer";
 import { INote, Note } from "./note";
-import { AbstractEvent, NumberEvent } from "./event";
+import { AbstractEvent, getEasingFunctionOfNumberEvent, NumberEvent } from "./event";
 import { beatsCompare, BPM } from "./beats";
 import ChartError from "./error";
 import { isArrayOfNumbers } from "@/tools/typeTools";
+import { IObjectizable } from "./objectizable";
 interface JudgeLineOptions {
     BPMList: BPM[],
     judgeLineNumber: number
@@ -91,7 +92,6 @@ export interface IJudgeLine {
     }[]
 }
 
-
 // Default constants
 const DEFAULT_GROUP = 0;
 const DEFAULT_NAME = "Untitled";
@@ -115,7 +115,7 @@ const DEFAULT_X_MIN = 0;
 const MAX_EVENT_LAYERS = 4;
 const SPEED_RATIO = 120;
 
-export class JudgeLine implements IJudgeLine {
+export class JudgeLine implements IJudgeLine, IObjectizable {
     Group = DEFAULT_GROUP;
     Name = DEFAULT_NAME;
     Texture = DEFAULT_TEXTURE;
@@ -136,6 +136,7 @@ export class JudgeLine implements IJudgeLine {
                 result += eventLayer.getEventsByType(type).length;
             }
         }
+
         for (const type of extendedEventTypes) {
             result += this.extended.getEventsByType(type).length;
         }
@@ -254,6 +255,7 @@ export class JudgeLine implements IJudgeLine {
         if (this.eventLayers.length >= MAX_EVENT_LAYERS) {
             throw new Error("最多只能有4个事件层级");
         }
+
         const newEventLayer = this.createAnInitializedEventLayer(0, 0, 0, 0, 0);
         this.eventLayers.push(newEventLayer);
         return newEventLayer;
@@ -298,11 +300,12 @@ export class JudgeLine implements IJudgeLine {
     }
 
     /**
-     * 
-     * @param seconds 当前时间，以秒为单位
-     * @returns 在当前时间被判定的音符离在第0拍时被判定的音符的距离
+     * 获取某一个时刻的 floor position。
+     * floor position 的解释：若在某一个时刻有一个音符A，第0拍处有一个音符B，A到B的距离就是这个时刻的 floor position。
+     * @param seconds 时刻，以秒为单位
+     * @returns floor position
      */
-    getPositionOfSeconds(seconds: number) {
+    getFloorPositionOfSeconds(seconds: number) {
         let position = 0;
 
         /**
@@ -366,7 +369,22 @@ export class JudgeLine implements IJudgeLine {
                 const acceleration = (end - start) / (endSeconds - startSeconds);
 
                 // eslint-disable-next-line no-magic-numbers
-                const displacement = (start * duration + 0.5 * acceleration * duration * duration) * SPEED_RATIO;
+                const displacement = (() => {
+                    if (seconds <= startSeconds) return 0;
+                    if (event.easingType === EasingType.Linear) {
+                        return (start * duration + 0.5 * acceleration * duration * duration) * SPEED_RATIO;
+                    }
+                    else {
+                        return calculateDisplacement(
+                            getEasingFunctionOfNumberEvent(event),
+                            startSeconds,
+                            endSeconds,
+                            start,
+                            end,
+                            effectiveEndTime
+                        ) * SPEED_RATIO;
+                    }
+                })();
 
                 distance += displacement;
                 currentVelocity = start + acceleration * duration;
@@ -393,30 +411,32 @@ export class JudgeLine implements IJudgeLine {
         if (id === "X") {
             return this.extended;
         }
+
         const eventLayerNumber = parseInt(id);
         if (isNaN(eventLayerNumber)) {
             throw new Error(`错误的事件层编号: ${id}`);
         }
+
         if (eventLayerNumber < 0) {
-            throw new Error(`事件层编号不能小于0，但当前为${id}`);
+            throw new Error(`事件层编号不能小于 0，但当前为${id}`);
         }
+
         if (!Number.isInteger(eventLayerNumber)) {
             throw new Error(`事件层编号必须是整数，但当前为${eventLayerNumber}`);
         }
-        if (eventLayerNumber >= 10) {
-            throw new Error(`试图访问${eventLayerNumber}号事件层，但目前最多支持10个事件层`);
-        }
+
         if (eventLayerNumber >= this.eventLayers.length) {
             throw new Error(`事件层编号超出范围: ${id}`);
         }
         return this.eventLayers[eventLayerNumber];
     }
-    isUseful() {
+    get isUseful() {
         // 无用的判定线删除后不会影响显示效果
         // 判断条件：如果该判定线上存在音符或者值不为0的透明度事件，则认为该判定线是“有用的”
         if (this.notes.length > 0) {
             return true;
         }
+
         for (const eventLayer of this.eventLayers) {
             for (const event of eventLayer.alphaEvents) {
                 if (event.start > 0 || event.end > 0) {
@@ -447,25 +467,23 @@ export class JudgeLine implements IJudgeLine {
                 ));
             }
 
-
             if ("Name" in judgeLine) {
                 if (isString(judgeLine.Name)) {
                     this.Name = judgeLine.Name;
                 }
                 else {
                     this.errors.push(new ChartError(
-                        `${this.id}号判定线：判定线的 Name 属性必须是字符串，但读取到了 ${judgeLine.Name}。将会被替换为字符串 "Unknown"。`,
+                        `${this.id}号判定线：判定线的 Name 属性必须是字符串，但读取到了 ${judgeLine.Name}。将会被替换为字符串 "${DEFAULT_NAME}"。`,
                         "ChartReadError.TypeError"
                     ));
                 }
             }
             else {
                 this.errors.push(new ChartError(
-                    `${this.id}号判定线：判定线缺少 Name 属性。将会被设为字符串 "Unknown"。`,
+                    `${this.id}号判定线：判定线缺少 Name 属性。将会被设为字符串 "${DEFAULT_NAME}"。`,
                     "ChartReadError.MissingProperty"
                 ));
             }
-
 
             if ("Texture" in judgeLine) {
                 if (isString(judgeLine.Texture)) {
@@ -473,18 +491,17 @@ export class JudgeLine implements IJudgeLine {
                 }
                 else {
                     this.errors.push(new ChartError(
-                        `${this.id}号判定线：判定线的 Texture 属性必须是字符串，但读取到了 ${judgeLine.Texture}。将会被替换为字符串 "line.png"。`,
+                        `${this.id}号判定线：判定线的 Texture 属性必须是字符串，但读取到了 ${judgeLine.Texture}。将会被替换为字符串 "${DEFAULT_TEXTURE}"。`,
                         "ChartReadError.TypeError"
                     ));
                 }
             }
             else {
                 this.errors.push(new ChartError(
-                    `${this.id}号判定线：判定线缺少 Texture 属性。将会被设为字符串 "line.png"。`,
+                    `${this.id}号判定线：判定线缺少 Texture 属性。将会被设为字符串 "${DEFAULT_TEXTURE}"。`,
                     "ChartReadError.MissingProperty"
                 ));
             }
-
 
             if ("isCover" in judgeLine) {
                 if (isNumber(judgeLine.isCover)) {
@@ -493,14 +510,14 @@ export class JudgeLine implements IJudgeLine {
                     }
                     else {
                         this.errors.push(new ChartError(
-                            `${this.id}号判定线：判定线的 isCover 属性必须是 0 或 1，但读取到了 ${judgeLine.isCover}。将会被替换为数字 1。`,
+                            `${this.id}号判定线：判定线的 isCover 属性必须是 0 或 1，但读取到了 ${judgeLine.isCover}。将会被替换为数字 ${DEFAULT_IS_COVER}。`,
                             "ChartReadError.OutOfRange"
                         ));
                     }
                 }
                 else {
                     this.errors.push(new ChartError(
-                        `${this.id}号判定线：判定线的 isCover 属性必须是数字，但读取到了 ${judgeLine.isCover}。将会被替换为数字 1。`,
+                        `${this.id}号判定线：判定线的 isCover 属性必须是数字，但读取到了 ${judgeLine.isCover}。将会被替换为数字 ${DEFAULT_IS_COVER}。`,
                         "ChartReadError.TypeError"
                     ));
                 }
@@ -511,7 +528,6 @@ export class JudgeLine implements IJudgeLine {
                     "ChartReadError.MissingProperty"
                 ));
             }
-
 
             if ("father" in judgeLine) {
                 if (isNumber(judgeLine.father)) {
@@ -531,7 +547,6 @@ export class JudgeLine implements IJudgeLine {
                 ));
             }
 
-
             if ("zOrder" in judgeLine) {
                 if (isNumber(judgeLine.zOrder)) {
                     this.zOrder = judgeLine.zOrder;
@@ -550,7 +565,6 @@ export class JudgeLine implements IJudgeLine {
                 ));
             }
 
-
             if ("attachUI" in judgeLine) {
                 if (judgeLine.attachUI === "combo" ||
                     judgeLine.attachUI === "score" ||
@@ -568,7 +582,6 @@ export class JudgeLine implements IJudgeLine {
                     ));
                 }
             }
-
 
             if ("eventLayers" in judgeLine) {
                 if (isArray(judgeLine.eventLayers)) {
@@ -597,7 +610,6 @@ export class JudgeLine implements IJudgeLine {
                 ));
             }
 
-
             if ("extended" in judgeLine) {
                 const newExtendedEventLayer = new ExtendedEventLayer(judgeLine.extended, {
                     judgeLineNumber: options.judgeLineNumber,
@@ -613,7 +625,6 @@ export class JudgeLine implements IJudgeLine {
                     "ChartReadError.MissingProperty"
                 ));
             }
-
 
             if ("notes" in judgeLine) {
                 if (isArray(judgeLine.notes)) {
@@ -634,7 +645,6 @@ export class JudgeLine implements IJudgeLine {
                     "ChartReadError.MissingProperty"
                 ));
             }
-
 
             if ("bpmfactor" in judgeLine) {
                 if (isNumber(judgeLine.bpmfactor)) {

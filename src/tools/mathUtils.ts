@@ -1,16 +1,18 @@
 import { isString } from "lodash";
-import Validation from "./validation";
+import Assertion from "./assertion";
 
 export const DEG_TO_RAD = Math.PI / 180;
 export const KB_TO_BYTE = 1024;
+export const HOUR_TO_MIN = 60;
 export const MIN_TO_SEC = 60;
+export const SEC_TO_MS = 1000;
 export default class MathUtils {
     /**
-     * 求从(x1, y1)点往dir方向移动x2，左转90度，再移动y2得到的坐标  
-     * dir为0表示向右（x轴正方向），为90表示向下（y轴负方向）
+     * 求从 (x1, y1) 点往 dir 方向移动 x2，左转 90 度，再移动 y2 得到的坐标
+     * dir 为 0 表示向右（X轴正方向），为 90 表示向下（Y轴负方向）
      */
     static moveAndRotate(x1: number, y1: number, dir: number, x2: number, y2: number) {
-        // 初始方向向量（单位向量）  
+        // 初始方向向量（单位向量）
         const dx = Math.cos(this.degToRad(dir));
         const dy = -Math.sin(this.degToRad(dir));
 
@@ -31,14 +33,17 @@ export default class MathUtils {
     }
 
     /**
-     * 把以(x, y)为原点的极坐标转换为直角坐标  
-     * theta为0表示向右（x轴正方向），为90表示向下（y轴负方向）
+     * 把以 (x, y) 为原点的极坐标转换为直角坐标
+     * theta 为 0 表示向右（X轴正方向），为 90 表示向下（Y轴负方向）
      */
     static pole(x: number, y: number, theta: number, r: number) {
         return this.moveAndRotate(x, y, theta, r, 0);
     }
     static degToRad(degrees: number) {
         return degrees * DEG_TO_RAD;
+    }
+    static radToDeg(radians: number) {
+        return radians / DEG_TO_RAD;
     }
     static mod(x: number, y: number) {
         return (x % y + y) % y;
@@ -50,8 +55,8 @@ export default class MathUtils {
         return Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
     }
     static gcd(a: number, b: number): number {
-        new Validation(a).is("number").integer();
-        new Validation(b).is("number").integer();
+        new Assertion(a).is("number").integer();
+        new Assertion(b).is("number").integer();
 
         a = Math.abs(a);
         b = Math.abs(b);
@@ -61,8 +66,8 @@ export default class MathUtils {
         return a === 0 && b === 0 ? 0 : a;
     }
     static lcm(a: number, b: number) {
-        new Validation(a).is("number").integer();
-        new Validation(b).is("number").integer();
+        new Assertion(a).is("number").integer();
+        new Assertion(b).is("number").integer();
 
         a = Math.abs(a);
         b = Math.abs(b);
@@ -71,6 +76,25 @@ export default class MathUtils {
         }
 
         return a / this.gcd(a, b) * b;
+    }
+    static pow(base: number, exponent: number): number {
+        if (!Number.isInteger(exponent)) {
+            return base ** exponent;
+        }
+
+        let result = 1;
+        if (exponent < 0) {
+            return this.pow(1 / base, -exponent);
+        }
+
+        while (exponent > 0) {
+            if (exponent & 1) {
+                result *= base;
+            }
+            exponent >>= 1;
+            base *= base;
+        }
+        return result;
     }
     static randomNumbers(count: number, seed?: number | string, min = 0, max = 1): number[] {
         const LCG_MULTIPLIER = 9301;
@@ -84,25 +108,26 @@ export default class MathUtils {
             }
             return result;
         }
+
         if (isString(seed)) {
             seed = MathUtils.hashCode(seed);
         }
 
-        new Validation(count).is("number").integer().positive();
-        new Validation(seed).is("number").finite().notNaN();
-        new Validation(min).is("number").finite().notNaN().max(max);
-        new Validation(max).is("number").finite().notNaN().min(min);
+        new Assertion(count).is("number").integer().positive();
+        new Assertion(seed).is("number").finite().notNaN();
+        new Assertion(min).is("number").finite().notNaN().max(max);
+        new Assertion(max).is("number").finite().notNaN().min(min);
 
         // 种子值更新函数
         function updateSeed(seed: number): number {
-            return MathUtils.mod((seed * LCG_MULTIPLIER + LCG_INCREMENT), LCG_MODULUS);
+            return MathUtils.mod(seed * LCG_MULTIPLIER + LCG_INCREMENT, LCG_MODULUS);
         }
 
         // 初始化结果数组
         const result: number[] = [];
         for (let i = 0; i < count; i++) {
             seed = updateSeed(seed);
-            result.push(min + (seed / LCG_MODULUS) * (max - min));
+            result.push(min + seed / LCG_MODULUS * (max - min));
         }
 
         return result;
@@ -114,7 +139,7 @@ export default class MathUtils {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             const char = str.charCodeAt(i);
-            hash = ((hash << HASH_SHIFT) - hash) + char;
+            hash = (hash << HASH_SHIFT) - hash + char;
 
             // 转换为32位整数
             hash = hash & hash;
@@ -138,12 +163,15 @@ export default class MathUtils {
         if (!Array.isArray(units) || units.length === 0) {
             throw new Error("Invalid units array");
         }
+
         if (typeof base !== "number" || base <= 0) {
             throw new Error("Invalid base: " + base);
         }
+
         if (!isFinite(num) || isNaN(num)) {
             throw new Error("Invalid number: " + num);
         }
+
         if (typeof p !== "number" || p < 0 || !Number.isInteger(p)) {
             throw new Error("Invalid precision: " + p);
         }
@@ -163,6 +191,7 @@ export default class MathUtils {
         if (num === 0) {
             return "0";
         }
+
         let str = num.toFixed(p).replace(/0+$/, "");
         if (str.endsWith(".")) {
             str = str.slice(0, -1);
@@ -170,10 +199,21 @@ export default class MathUtils {
         return str;
     }
 
-    /** 把实数转换成有理数 */
+    /** 把任意实数表示为两个整数相除的结果 */
     static realToRational(num: number): [number, number] {
-        if (!isFinite(num)) {
-            throw new Error("Invalid input: num must be a finite number");
+        // 1 / 0 === Infinity
+        if (num === Infinity) {
+            return [1, 0];
+        }
+
+        // -1 / 0 === -Infinity
+        if (num === -Infinity) {
+            return [-1, 0];
+        }
+
+        // 0 / 0 is NaN
+        if (isNaN(num)) {
+            return [0, 0];
         }
 
         const PRECISION = 0.0001;

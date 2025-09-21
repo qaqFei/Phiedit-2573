@@ -89,7 +89,9 @@
             ref="selectEasing"
             v-model="inputEvent.easingType"
             @change="updateModel('easingType'), createHistory()"
-        />
+        >
+            缓动类型
+        </MySelectEasing>
         <MySwitch
             ref="switchDisabled"
             v-model="inputEvent.isDisabled"
@@ -253,6 +255,7 @@ function createHistory() {
                 continue;
             }
         }
+
         if (inputEvent[attr] !== oldValues[attr]) {
             // mouseManager.checkMouseUp();
             historyManager.recordModifyEvent(model.value.id, attr, inputEvent[attr], oldValues[attr]);
@@ -265,6 +268,7 @@ function createHistory() {
         (oldValues[attr] as any) = inputEvent[attr];
     }
 }
+
 function updateModel<K extends keyof IEvent<number>>(...attrNames: K[]) {
     // const oldValues = attrNames.map(attr => model.value[attr]);
     // const newValues = attrNames.map(attr => inputEvent[attr]);
@@ -283,11 +287,8 @@ onMounted(() => {
     globalEventEmitter.on("STICK", stick);
 });
 onBeforeUnmount(() => {
-    try {
+    if (store.getEventById(model.value.id)) {
         createHistory();
-    }
-    catch (e) {
-        console.error(e);
     }
     globalEventEmitter.off("SWAP", swap);
     globalEventEmitter.off("STICK", stick);
@@ -299,6 +300,7 @@ function swap() {
     inputStart.value?.updateShowedValue();
     inputEnd.value?.updateShowedValue();
 }
+
 function stick() {
     const judgeLine = store.getJudgeLineById(model.value.judgeLineNumber);
     const eventLayer = judgeLine.getEventLayerById(model.value.eventLayerId);
@@ -313,6 +315,7 @@ function stick() {
             break;
         }
     }
+
     if (!event) {
         throw new Error("当前事件前面没有事件，无法粘合");
     }

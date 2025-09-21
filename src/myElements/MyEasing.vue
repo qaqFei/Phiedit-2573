@@ -70,7 +70,6 @@ const size = ref({
 // 设备像素比
 const dpr = window.devicePixelRatio || 1;
 
-
 // Index of dragged point (0 or 1)
 let draggingPoint: number | null = null;
 let isDragging = false;
@@ -111,11 +110,11 @@ const transformPoint = (x: number, y: number): [number, number] => {
 
     // x轴变换：x ∈ [xMin, xMax] → 画布x ∈ [0, width]
     const xMin = X_MIN, xMax = X_MAX;
-    let canvasX = ((x - xMin) / (xMax - xMin)) * width;
+    let canvasX = (x - xMin) / (xMax - xMin) * width;
 
     // y轴变换：y ∈ [yMin, yMax] → 画布y ∈ [height, 0]
     const yMin = Y_MIN, yMax = Y_MAX;
-    let canvasY = height - ((y - yMin) / (yMax - yMin)) * height;
+    let canvasY = height - (y - yMin) / (yMax - yMin) * height;
 
     // 以画布中心为锚点缩放
     const centerX = width / 2;
@@ -226,7 +225,6 @@ const drawFunction = () => {
         ctx.value.strokeStyle = props.color;
         ctx.value.lineWidth = 2;
 
-
         const easingLeft = model.value.easingLeft;
         const easingRight = model.value.easingRight;
 
@@ -247,6 +245,7 @@ const drawFunction = () => {
         }
     }
 };
+
 const drawControlPoints = () => {
     // Draw control points if in Bézier mode
     if (model.value.bezier && model.value.bezierPoints) {
@@ -318,7 +317,7 @@ function isPointNearControlPoint(
     const [px, py] = transformPoint(pointX, pointY);
 
     // 10px hit detection radius
-    return MathUtils.distance(canvasX, canvasY, px, py) < 10;
+    return MathUtils.distance(canvasX, canvasY, px, py) < POINT_SIZE;
 }
 
 // 重绘函数
@@ -350,6 +349,7 @@ onMounted(() => {
         initCanvas();
         redraw();
     }
+
     if (canvas.value) {
         canvas.value.addEventListener("mousedown", handleMouseDown);
         canvas.value.addEventListener("mousemove", handleMouseMove);
@@ -363,6 +363,7 @@ onBeforeUnmount(() => {
     if (container.value) {
         resizeObserver.unobserve(container.value);
     }
+
     if (canvas.value) {
         canvas.value.removeEventListener("mousedown", handleMouseDown);
         canvas.value.removeEventListener("mousemove", handleMouseMove);
@@ -376,8 +377,8 @@ function handleMouseDown(e: MouseEvent) {
     if (!ctx.value || !canvas.value) return;
 
     const rect = canvas.value.getBoundingClientRect();
-    const canvasX = (e.clientX - rect.left);
-    const canvasY = (e.clientY - rect.top);
+    const canvasX = e.clientX - rect.left;
+    const canvasY = e.clientY - rect.top;
 
     if (model.value.bezier) {
         const [p1x, p1y, p2x, p2y] = model.value.bezierPoints;
@@ -408,6 +409,7 @@ function handleMouseDown(e: MouseEvent) {
         }
     }
 }
+
 function canvasToModelCoords(canvasX: number, canvasY: number): { x: number, y: number } {
     const width = size.value.width / dpr;
     const height = size.value.height / dpr;
@@ -419,11 +421,12 @@ function canvasToModelCoords(canvasX: number, canvasY: number): { x: number, y: 
     const scaledY = (canvasY - centerY) * props.zoomOut + centerY;
 
     // Reverse axis transform
-    const x = (scaledX / width) * (X_MAX - X_MIN) + X_MIN;
-    const y = ((height - scaledY) / height) * (Y_MAX - Y_MIN) + Y_MIN;
+    const x = scaledX / width * (X_MAX - X_MIN) + X_MIN;
+    const y = (height - scaledY) / height * (Y_MAX - Y_MIN) + Y_MIN;
 
     return { x, y };
 }
+
 function handleMouseMove(e: MouseEvent) {
     if (!ctx.value || !canvas.value) return;
 
@@ -496,10 +499,6 @@ function handleMouseLeave() {
     mouseX = null;
     redraw();
 }
-
-
-
-
 
 // 监听model变化
 watch(() => [

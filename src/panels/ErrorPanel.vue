@@ -114,21 +114,25 @@ function goto(object: Note | NumberEvent | ColorEvent | TextEvent) {
     if (!(object instanceof Note)) {
         stateManager.state.currentEventLayerId = object.eventLayerId;
     }
+
     if (!MathUtils.between(coordinateManager.getRelativePositionYOfSeconds(object.cachedStartSeconds),
         Constants.EDITOR_VIEW_NOTES_VIEWBOX.top,
         Constants.EDITOR_VIEW_NOTES_VIEWBOX.bottom)) {
         store.gotoBeats(object.startTime);
     }
     selectionManager.unselectAll();
-    selectionManager.select(object);
+    selectionManager.addToSelection(object);
 }
+
 function updateErrors() {
     globalEventEmitter.emit("CHECK_ERRORS");
     u.value = !u.value;
 }
+
 function autoFixErrors() {
     globalEventEmitter.emit("AUTO_FIX_ERRORS");
 }
+
 function errorFixedHandler(fixedErrors: number) {
     if (fixedErrors) {
         ElMessage.success(`已自动修复 ${fixedErrors} 个错误`);

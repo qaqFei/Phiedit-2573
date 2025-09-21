@@ -246,6 +246,7 @@ const inputNote: INote & NoteExtends = reactive({
             this.endTime = startTime;
             return;
         }
+
         const endTime = makeSureBeatsValid(parseBeats(end));
         this.startTime = startTime;
         this.endTime = endTime;
@@ -277,6 +278,7 @@ function updateModel<K extends keyof INote>(...attrNames: K[]) {
 
     // historyManager.ungroup();
 }
+
 function createHistory() {
     // 遍历新值和旧值，找到不一样的属性
     for (const attr of attributes) {
@@ -296,12 +298,8 @@ onMounted(() => {
     globalEventEmitter.on("REVERSE", reverse);
 });
 onBeforeUnmount(() => {
-    // 假如用户没有让输入框失焦就直接退出了，检查一下有没有没记录上的历史记录
-    try {
+    if (store.getNoteById(model.value.id)) {
         createHistory();
-    }
-    catch (e) {
-        console.error(e);
     }
     globalEventEmitter.off("REVERSE", reverse);
 });
