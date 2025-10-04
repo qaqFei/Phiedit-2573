@@ -1,3 +1,6 @@
+<!-- Copyright © 2025 程序小袁_2573. All rights reserved. -->
+<!-- Licensed under MIT (https://opensource.org/licenses/MIT) -->
+
 <template>
     <div class="judgeline-panel right-inner">
         <Teleport :to="props.titleTeleport">
@@ -239,7 +242,7 @@ function handleDeleteJudgeLine() {
     if (stateManager.judgeLinesCount <= 1) {
         throw new Error("无法删除最后一条判定线");
     }
-    chart.deleteJudgeLine(stateManager.state.currentJudgeLineNumber);
+    globalEventEmitter.emit("DELETE_JUDGE_LINE", stateManager.state.currentJudgeLineNumber);
     if (currentLine >= stateManager.judgeLinesCount) {
         stateManager.state.currentJudgeLineNumber = stateManager.judgeLinesCount - 1;
     }

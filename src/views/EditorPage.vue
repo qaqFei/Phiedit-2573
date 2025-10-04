@@ -1,3 +1,6 @@
+<!-- Copyright © 2025 程序小袁_2573. All rights reserved. -->
+<!-- Licensed under MIT (https://opensource.org/licenses/MIT) -->
+
 <template>
     <ElContainer>
         <ElHeader id="header">
@@ -114,48 +117,7 @@
                     v-if="audioRef"
                     v-model="audioRef.playbackRate"
                     class="speed-select"
-                    :options="[
-                        {
-                            label: '1.0x',
-                            value: 1,
-                            text: '1.0x',
-                        },
-                        {
-                            label: '0.5x',
-                            value: 0.5,
-                            text: '0.5x',
-                        },
-                        {
-                            label: '0.25x',
-                            value: 0.25,
-                            text: '0.25x',
-                        },
-                        {
-                            label: '0.125x',
-                            value: 0.125,
-                            text: '0.125x',
-                        },
-                        {
-                            label: '0.0x',
-                            value: 0,
-                            text: '0.0x',
-                        },
-                        {
-                            label: '1.5x',
-                            value: 1.5,
-                            text: '1.5x',
-                        },
-                        {
-                            label: '2.0x',
-                            value: 2,
-                            text: '2.0x',
-                        },
-                        {
-                            label: '3.0x',
-                            value: 3,
-                            text: '3.0x',
-                        },
-                    ]"
+                    :options="speedOptions"
                 >
                     倍速
                 </MySelect>
@@ -205,18 +167,18 @@
                     :gap="5"
                 >
                     <MyButton
-                        v-for="i in min([stateManager.eventLayersCount, 4])"
-                        :key="i - 1 + (u ? 0 : 0)"
+                        v-for="i in Math.min(stateManager.eventLayersCount, 4)"
+                        :key="i - 1"
                         type="primary"
                         :plain="i - 1 != parseInt(stateManager.state.currentEventLayerId)"
-                        @click="stateManager.state.currentEventLayerId = (i - 1).toString(), update()"
+                        @click="stateManager.state.currentEventLayerId = (i - 1).toString()"
                     >
                         {{ i - 1 }}
                     </MyButton>
                     <MyButton
                         type="warning"
                         :plain="stateManager.state.currentEventLayerId != 'X'"
-                        @click="stateManager.state.currentEventLayerId = 'X', update()"
+                        @click="stateManager.state.currentEventLayerId = 'X'"
                     >
                         特殊
                     </MyButton>
@@ -258,7 +220,7 @@
                         <template #default>
                             <MyButton
                                 type="primary"
-                                @click="catchErrorByMessage(exportChart, '导出')"
+                                @click="exportChart"
                             >
                                 导出谱面
                             </MyButton>
@@ -280,7 +242,7 @@
                     </MyButton>
                     <MyButton
                         type="primary"
-                        @click="catchErrorByMessage(openChartFolder, '打开谱面文件夹')"
+                        @click="openChartFolder"
                     >
                         打开谱面文件夹
                     </MyButton>
@@ -303,8 +265,8 @@
                                 v-if="isRenderingVideo"
                                 class="export-options"
                             >
-                                <span>{{ exportProgress.message }}（预计 {{ MathUtils.addTime(new Date(), exportProgress.remainingTime).toLocaleString() }} 完成）</span>
-                                <ElProgress :percentage="clamp(MathUtils.round(exportProgress.percent, 2), 0, 100)" />
+                                <span>{{ videoRenderingProgress.message }}（剩余{{ MathUtils.formatTime(videoRenderingProgress.remainingTime) }}）</span>
+                                <ElProgress :percentage="clamp(MathUtils.round(videoRenderingProgress.percent, 2), 0, 100)" />
                                 <MyButton
                                     type="warning"
                                     @click="cancelVideoRendering"
@@ -313,13 +275,13 @@
                                 </MyButton>
                             </div>
                             <div
-                                v-else-if="exportProgress.done"
+                                v-else-if="videoRenderingProgress.done"
                                 class="export-options"
                             >
                                 渲染完成！
                                 <MyButton
                                     type="primary"
-                                    @click="exportProgress.done = false, close()"
+                                    @click="videoRenderingProgress.done = false, close()"
                                 >
                                     确定
                                 </MyButton>
@@ -388,6 +350,45 @@
                                     </template>
                                     <template #append>
                                         像素
+                                    </template>
+                                </MyInputNumber>
+                                <MyInputNumber
+                                    v-model="settingsManager.settings.renderTimeStart"
+                                    :min="0"
+                                    :max="audioRef?.duration"
+                                    @change="settingsManager.saveSettings()"
+                                >
+                                    <template #prepend>
+                                        渲染开始时间
+                                    </template>
+                                    <template #append>
+                                        秒
+                                    </template>
+                                </MyInputNumber>
+                                <MyInputNumber
+                                    v-model="settingsManager.settings.renderTimeEnd"
+                                    :min="0"
+                                    :max="audioRef?.duration"
+                                    @change="settingsManager.saveSettings()"
+                                >
+                                    <template #prepend>
+                                        渲染结束时间
+                                    </template>
+                                    <template #append>
+                                        秒
+                                    </template>
+                                </MyInputNumber>
+                                <MyInputNumber
+                                    v-model="settingsManager.settings.renderFPS"
+                                    :min="0"
+                                    :min-inclusive="false"
+                                    @change="settingsManager.saveSettings()"
+                                >
+                                    <template #prepend>
+                                        FPS
+                                    </template>
+                                    <template #append>
+                                        帧/秒
                                     </template>
                                 </MyInputNumber>
                                 <MyButton
@@ -541,9 +542,6 @@
                         shader编辑
                     </MyButton>
                 </MyGridContainer>
-                <h3>
-                    快速切换判定线
-                </h3>
                 <MyInput
                     v-model="judgeLineFilter"
                     class="judge-line-filter-input"
@@ -556,17 +554,17 @@
                 >
                     <MyButton
                         v-for="judgeLine in filteredJudgeLines"
-                        :key="judgeLine.id + (u ? 0 : 0)"
-                        :type="(['primary', 'warning', 'danger', 'success', 'info'] as const)[Math.floor((judgeLine.id) / 10) % 5]"
-                        :plain="judgeLine.id != stateManager.state.currentJudgeLineNumber"
+                        :key="judgeLine.judgeLineNumber"
+                        :type="(['primary', 'warning', 'danger', 'success', 'info'] as const)[Math.floor((judgeLine.judgeLineNumber) / 10) % 5]"
+                        :plain="judgeLine.judgeLineNumber != stateManager.state.currentJudgeLineNumber"
                         flex
-                        @click="stateManager.state.currentJudgeLineNumber = judgeLine.id, update()"
+                        @click="stateManager.state.currentJudgeLineNumber = judgeLine.judgeLineNumber"
                     >
-                        {{ judgeLine.id }}
+                        {{ judgeLine.judgeLineNumber }}
                     </MyButton>
                     <MyButton
                         type="success"
-                        @click="chart.addNewJudgeLine(), update()"
+                        @click="globalEventEmitter.emit('ADD_JUDGE_LINE')"
                     >
                         +
                     </MyButton>
@@ -645,31 +643,20 @@
 </template>
 
 <script setup lang="ts">
-import {
-    ElAside,
-    ElScrollbar,
-    ElContainer,
-    ElHeader,
-    ElIcon,
-    ElMain,
-    ElSlider,
-    ElFooter,
-    ElTooltip,
-    ElRadioButton,
-    ElRadioGroup,
-    ElMessage,
-    ElProgress,
-} from "element-plus";
+import {ElAside, ElScrollbar, ElContainer, ElHeader, ElIcon, ElMain, ElSlider, ElFooter, ElTooltip, ElRadioButton, ElRadioGroup, ElProgress} from "element-plus";
 import { computed, inject, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { clamp, isNumber, mean, min } from "lodash";
+import { clamp, isNumber, mean } from "lodash";
 
 import MediaUtils from "@/tools/mediaUtils";
 import KeyboardUtils from "@/tools/keyboardUtils";
-import { catchErrorByMessage, confirm } from "@/tools/catchError";
+import { catchErrorByMessage, confirm, createCatchErrorByMessage } from "@/tools/catchError";
+import MathUtils, { SEC_TO_MS } from "@/tools/mathUtils";
+import { ArrayedObject, checkAndSort, unique } from "@/tools/algorithm";
 
 import { isNumberEventLike, isColorEventLike, isTextEventLike } from "@/models/event";
 import { isNoteLike, NoteType } from "@/models/note";
+import { IJudgeLine, JudgeLineExtendedOptions } from "@/models/judgeLine";
 
 import MyButton from "@/myElements/MyButton.vue";
 import MySelect from "@/myElements/MySelect.vue";
@@ -678,6 +665,9 @@ import MyBackHeader from "@/myElements/MyBackHeader.vue";
 import MyGridContainer from "@/myElements/MyGridContainer.vue";
 import MyImage from "@/myElements/MyImage.vue";
 import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
+import MyLink from "@/myElements/MyLink.vue";
+import MyInput from "@/myElements/MyInput.vue";
+import MyDialog from "@/myElements/MyDialog.vue";
 
 import BPMListPanel from "@/panels/BPMListPanel.vue";
 import ChartMetaPanel from "@/panels/ChartMetaPanel.vue";
@@ -695,18 +685,14 @@ import FastBindPanel from "@/panels/FastBindPanel.vue";
 import ColorEventEditPanel from "@/panels/ColorEventEditPanel.vue";
 import TextEventEditPanel from "@/panels/TextEventEditPanel.vue";
 import ErrorPanel from "@/panels/ErrorPanel.vue";
+import ShaderPanel from "@/panels/ShaderPanel.vue";
 
-import globalEventEmitter from "@/eventEmitter";
+import globalEventEmitter, { VideoRenderingProgress } from "@/eventEmitter";
 import store, { managersMap } from "@/store";
 import Constants from "@/constants";
-import ShaderPanel from "@/panels/ShaderPanel.vue";
-import MyLink from "@/myElements/MyLink.vue";
-import MyInput from "@/myElements/MyInput.vue";
-import { ArrayedObject } from "@/tools/algorithm";
-import { RightPanelState } from "@/managers/state";
-import MathUtils, { SEC_TO_MS } from "@/tools/mathUtils";
+import { RightPanelState } from "@/managers/renderer/state";
 import getKeyHandler from "@/keyHandlers";
-import MyDialog from "@/myElements/MyDialog.vue";
+import { DeepRequired } from "@/tools/typeTools";
 
 const loadStart = inject("loadStart", () => {
     throw new Error("loadStart is not defined");
@@ -761,7 +747,6 @@ const fps = ref(0);
 const time = ref(0);
 const combo = ref(0);
 const score = ref(0);
-const u = ref(false);
 const audioIsPlaying = ref(false);
 const tip = ref(Constants.tips[Math.floor(Math.random() * Constants.tips.length)]);
 const mouseIsInCanvas = ref(false);
@@ -769,14 +754,29 @@ const mouseX = ref(0);
 const mouseY = ref(0);
 const judgeLineFilter = ref("");
 
+const judgeLineList: DeepRequired<(IJudgeLine & JudgeLineExtendedOptions)[]> = reactive([]);
+
+onMounted(() => {
+    globalEventEmitter.on("JUDGE_LINE_COUNT_CHANGED", updateJudgeLineList);
+});
+onBeforeUnmount(() => {
+    globalEventEmitter.off("JUDGE_LINE_COUNT_CHANGED", updateJudgeLineList);
+});
+
+function updateJudgeLineList() {
+    judgeLineList.length = 0;
+    judgeLineList.push(...chart.judgeLineList);
+}
+updateJudgeLineList();
+
 const filteredJudgeLines = computed(() => {
     // 如果过滤条件为空，就直接返回所有的判定线
     if (judgeLineFilter.value === "") {
-        return [...chart.judgeLineList];
+        return [...judgeLineList];
     }
 
-    const result = chart.judgeLineList.filter(judgeLine => {
-        return judgeLine.id
+    const result = judgeLineList.filter(judgeLine => {
+        return judgeLine.judgeLineNumber
             .toString()
             .toLowerCase()
             .includes(
@@ -814,13 +814,13 @@ const filteredJudgeLines = computed(() => {
 
     // 处理范围匹配
     if (ranges.length > 0) {
-        result.push(...chart.judgeLineList.filter(judgeLine =>
+        result.push(...judgeLineList.filter(judgeLine =>
             ranges.some(range => {
                 if (isNumber(range)) {
-                    return range === judgeLine.id;
+                    return range === judgeLine.judgeLineNumber;
                 }
                 else {
-                    return judgeLine.id >= range.start && judgeLine.id <= range.end;
+                    return judgeLine.judgeLineNumber >= range.start && judgeLine.judgeLineNumber <= range.end;
                 }
             })
         ));
@@ -829,13 +829,13 @@ const filteredJudgeLines = computed(() => {
     // 根据父线筛选
     const fatherMatch = judgeLineFilter.value.match(/^(father|parent|dad|daddy):(\d+)/);
     if (fatherMatch) {
-        result.push(...chart.judgeLineList.filter(judgeLine => judgeLine.father === +fatherMatch[2]));
+        result.push(...judgeLineList.filter(judgeLine => judgeLine.father === +fatherMatch[2]));
     }
 
     // 根据绑定的 UI 筛选
     const uiMatch = judgeLineFilter.value.match(/^ui(:(.*))?/);
     if (uiMatch) {
-        result.push(...chart.judgeLineList.filter(judgeLine => {
+        result.push(...judgeLineList.filter(judgeLine => {
             if (uiMatch[2]) {
                 return judgeLine.attachUI.includes(uiMatch[2]);
             }
@@ -848,7 +848,7 @@ const filteredJudgeLines = computed(() => {
     // 根据贴图筛选
     const textureMatch = judgeLineFilter.value.match(/^(texture|picture|image)(:(.*))?/);
     if (textureMatch) {
-        result.push(...chart.judgeLineList.filter(judgeLine => {
+        result.push(...judgeLineList.filter(judgeLine => {
             if (textureMatch[3]) {
                 return judgeLine.Texture.includes(textureMatch[3]);
             }
@@ -861,7 +861,7 @@ const filteredJudgeLines = computed(() => {
     // 根据是否有文字事件筛选
     const textMatch = judgeLineFilter.value.match(/^text/);
     if (textMatch) {
-        result.push(...chart.judgeLineList.filter(judgeLine => {
+        result.push(...judgeLineList.filter(judgeLine => {
             return judgeLine.extended.textEvents.length > 0;
         }));
     }
@@ -869,7 +869,7 @@ const filteredJudgeLines = computed(() => {
     // 根据是否有颜色事件筛选
     const colorMatch = judgeLineFilter.value.match(/^color/);
     if (colorMatch) {
-        result.push(...chart.judgeLineList.filter(judgeLine => {
+        result.push(...judgeLineList.filter(judgeLine => {
             return judgeLine.extended.colorEvents.length > 0;
         }));
     }
@@ -877,10 +877,12 @@ const filteredJudgeLines = computed(() => {
     // 根据是否有音符筛选
     const noteMatch = judgeLineFilter.value.match(/^note/);
     if (noteMatch) {
-        result.push(...chart.judgeLineList.filter(judgeLine => {
+        result.push(...judgeLineList.filter(judgeLine => {
             return judgeLine.notes.length > 0;
         }));
     }
+    checkAndSort(result, (a, b) => a.judgeLineNumber - b.judgeLineNumber);
+    unique(result);
     return result;
 });
 
@@ -895,6 +897,7 @@ const MOUSE_RIGHT = 2;
 /** 每条 tip 显示 10 秒 */
 const TIP_SHOW_TIME = 10000;
 
+/** FPS 的颜色 */
 const fpsColor = computed(() => {
     if (fps.value >= FPS_THRESHOLDS.HIGH) {
         return "#00dd00";
@@ -909,8 +912,53 @@ const fpsColor = computed(() => {
         return "#ff0000";
     }
 });
-const exportProgress = reactive({
-    message: "",
+
+const speedOptions = [
+    {
+        label: "1.0x",
+        value: 1,
+        text: "1.0x",
+    },
+    {
+        label: "0.5x",
+        value: 0.5,
+        text: "0.5x",
+    },
+    {
+        label: "0.25x",
+        value: 0.25,
+        text: "0.25x",
+    },
+    {
+        label: "0.125x",
+        value: 0.125,
+        text: "0.125x",
+    },
+    {
+        label: "0.0x",
+        value: 0,
+        text: "0.0x",
+    },
+    {
+        label: "1.5x",
+        value: 1.5,
+        text: "1.5x",
+    },
+    {
+        label: "2.0x",
+        value: 2,
+        text: "2.0x",
+    },
+    {
+        label: "3.0x",
+        value: 3,
+        text: "3.0x",
+    },
+] as const;
+
+/** 视频渲染的进度 */
+const videoRenderingProgress = reactive({
+    message: "正在加载……",
     percent: 0,
     done: false,
     remainingTime: 0
@@ -918,30 +966,52 @@ const exportProgress = reactive({
 
 let windowIsFocused = true;
 let cachedRect: DOMRect;
-let isRendering = true;
+let canvasIsRendering = true;
 
+/** 检查更新 */
 function checkForUpdates() {
     showUpdateDialog();
     window.electronAPI.checkForUpdates();
 }
 
-function update() {
-    u.value = !u.value;
-}
-
+/** 打开谱面文件夹 */
 function openChartFolder() {
     window.electronAPI.openChartFolder(store.getChartId());
 }
 
+/** 渲染为视频 */
 async function renderVideo() {
-    const audio = store.useAudio();
-    const duration = audio.duration;
-    const fps = 60;
-    const totalFrames = Math.ceil(duration * fps);
+    const fps = settingsManager._settings.renderFPS;
     const cachedSettings = { ...settingsManager._settings };
 
+    let videoRenderingTotalTime = 0;
+    let videoRenderingCount = 0;
+
+    // 用于更新进度和预测剩余时间
+    const videoProgressHandler = (progress: VideoRenderingProgress) => {
+        if (!isRenderingVideo.value) {
+            window.electronAPI.cancelVideoRendering();
+            throw new Error("已取消渲染");
+        }
+
+        videoRenderingTotalTime += progress.time;
+        videoRenderingCount++;
+
+        const percent = progress.processed / progress.total * 100;
+        const avgTimePerFrame = videoRenderingTotalTime / videoRenderingCount;
+        const remainingTime = avgTimePerFrame * (progress.total - progress.processed);
+
+        videoRenderingProgress.percent = percent;
+        videoRenderingProgress.message = progress.status;
+        videoRenderingProgress.remainingTime = remainingTime;
+    };
+
+    globalEventEmitter.onIpc("VIDEO_RENDERING_PROGRESS", videoProgressHandler);
+
     try {
-        const filePath = await window.electronAPI.showSaveVideoDialog(`output.mp4`);
+        pauseRenderLoop();
+        const chartName = store.chartPackageRef.value?.chart.META.name || "untitled";
+        const filePath = await window.electronAPI.showSaveVideoDialog(chartName);
         if (!filePath) {
             throw new Error("未选择导出视频的路径");
         }
@@ -951,28 +1021,49 @@ async function renderVideo() {
 
         // 递归处理函数
         const processFrames = async () => {
+            const duration = settingsManager._settings.renderTimeEnd - settingsManager._settings.renderTimeStart;
+            const totalFrames = Math.ceil(duration * fps);
             for (let frame = 0; frame < totalFrames; frame++) {
                 if (!isRenderingVideo.value) {
-                    throw new Error("已取消渲染");
+                    return;
                 }
 
-                const time = frame / fps;
+                const frameStartTime = Date.now();
+
+                const time = frame / fps + settingsManager._settings.renderTimeStart;
                 store.setTime(time);
                 globalEventEmitter.emit("AUTOPLAY");
                 globalEventEmitter.emit("RENDER_FRAME");
                 globalEventEmitter.emit("RENDER_CHART");
 
                 const dataUrl = canvas.toDataURL("image/jpeg");
-                await window.electronAPI.sendFrameData(dataUrl, frame, totalFrames);
+                await window.electronAPI.sendFrameData(dataUrl);
+
+                const frameEndTime = Date.now();
+                const frameProcessingTime = frameEndTime - frameStartTime;
+
+                globalEventEmitter.emit("VIDEO_RENDERING_PROGRESS", {
+                    status: `正在生成视频画面（${frame + 1} / ${totalFrames}）……`,
+                    processed: frame + 1,
+                    total: totalFrames,
+                    time: frameProcessingTime / SEC_TO_MS,
+                    code: "RENDERING_FRAMES"
+                });
             }
             return;
         };
 
-        const finish = async () => {
-            // 完成导出
-            exportProgress.done = true;
-            await window.electronAPI.finishVideoRendering(filePath);
-        };
+        const TIMEOUT = 30;
+
+        const finish = createCatchErrorByMessage(async () => {
+            videoRenderingProgress.done = true;
+            await Promise.race([
+                window.electronAPI.finishVideoRendering(filePath),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error("视频渲染完成超时")), TIMEOUT * SEC_TO_MS)
+                )
+            ]);
+        }, undefined, false);
 
         // 开始处理
 
@@ -984,13 +1075,14 @@ async function renderVideo() {
 
         // 开始渲染
         isRenderingVideo.value = true;
-        pauseRenderLoop();
 
-        await window.electronAPI.startVideoRendering(
+        await window.electronAPI.startVideoRendering({
             chartId,
             fps,
-            filePath,
-        );
+            outputPath: filePath,
+            startTime: settingsManager._settings.renderTimeStart,
+            endTime: settingsManager._settings.renderTimeEnd,
+        });
 
         videoRenderingCount = 0;
         videoRenderingTotalTime = 0;
@@ -1019,44 +1111,54 @@ async function renderVideo() {
 
         // 恢复渲染循环
         resumeRenderLoop();
+
+        // 移除监听器
+        globalEventEmitter.off("VIDEO_RENDERING_PROGRESS", videoProgressHandler);
     }
 }
 
-let videoRenderingTotalTime = 0;
-let videoRenderingCount = 0;
+function onSettingsLoaded() {
+    const audio = store.useAudio();
+    audio.addEventListener("canplay", () => {
+        settingsManager.settings.renderTimeStart = 0;
+        settingsManager.settings.renderTimeEnd = audio.duration;
+        settingsManager.saveSettings();
+    }, {
+        once: true
+    });
+}
 
-window.electronAPI.onVideoRenderingProgress(progress => {
-    videoRenderingTotalTime += progress.time;
-    videoRenderingCount++;
-
-    const percent = progress.processed / progress.total * 100;
-    const avgTimePerFrame = videoRenderingTotalTime / videoRenderingCount;
-    const remainingTime = avgTimePerFrame * (progress.total - progress.processed);
-
-    exportProgress.percent = percent;
-    exportProgress.message = progress.status;
-    exportProgress.remainingTime = remainingTime;
+onMounted(() => {
+    globalEventEmitter.on("SETTINGS_LOADED", onSettingsLoaded);
 });
 
+onBeforeUnmount(() => {
+    globalEventEmitter.off("SETTINGS_LOADED", onSettingsLoaded);
+    settingsManager.saveSettings();
+});
+
+/** 取消渲染 */
 async function cancelVideoRendering() {
     store.isRenderingVideo.value = false;
     await window.electronAPI.cancelVideoRendering();
 }
 
+/** 导出谱面 */
 async function exportChart() {
     const chartName = store.chartPackageRef.value?.chart.META.name || "untitled";
 
     // 使用预加载的 API 替代直接导入
     const filePath = await window.electronAPI.showSaveDialog(chartName);
-    if (!filePath) return;
-    globalEventEmitter.emit("EXPORT", filePath);
+    await globalEventEmitter.emitAsync("EXPORT", filePath);
 }
 
+/** 删除谱面 */
 async function deleteChart() {
     window.electronAPI.deleteChart(store.getChartId());
     router.push("/");
 }
 
+/** 添加判定线贴图 */
 async function addTextures() {
     const texturePaths = await window.electronAPI.showOpenImageDialog(true);
     if (!texturePaths) {
@@ -1173,12 +1275,12 @@ function audioOnPlay() {
 }
 
 function pauseRenderLoop() {
-    isRendering = false;
+    canvasIsRendering = false;
 }
 
 function resumeRenderLoop() {
-    isRendering = true;
-    renderLoop();
+    canvasIsRendering = true;
+    requestAnimationFrame(renderLoop);
 }
 
 /** 上一次渲染的时间 */
@@ -1190,14 +1292,14 @@ const showFpsFrequency = 20;
 /** 缓存最近的 FPS 数据 */
 const fpsList: number[] = [];
 function renderLoop() {
-    if (isRendering) {
+    if (canvasIsRendering) {
         const audio = store.useAudio();
         if (windowIsFocused) {
             if (settingsManager._settings.autoHighlight) {
                 chart.highlightNotes();
             }
 
-            try {
+            catchErrorByMessage(() => {
                 globalEventEmitter.emit("RENDER_FRAME");
                 globalEventEmitter.emit("AUTOPLAY");
                 if (stateManager.state.isPreviewing) {
@@ -1206,10 +1308,7 @@ function renderLoop() {
                 else {
                     globalEventEmitter.emit("RENDER_EDITOR");
                 }
-            }
-            catch (error) {
-                ElMessage.error(error as Error);
-            }
+            }, "渲染画面", false);
 
             const now = performance.now();
             const delta = now - renderTime;
@@ -1259,8 +1358,8 @@ onMounted(() => {
     window.addEventListener("wheel", windowOnWheel);
     window.addEventListener("keydown", windowOnKeyDown);
     window.addEventListener("keyup", windowOnKeyUp);
-    window.addEventListener("blur", windowOnBlur);
-    window.addEventListener("focus", windowOnFocus);
+    const removeWindowFocusListener = window.electronAPI.onWindowFocus(windowOnFocus);
+    const removeWindowBlurListener = window.electronAPI.onWindowBlur(windowOnBlur);
     document.oncontextmenu = documentOnContextmenu;
     audio.addEventListener("timeupdate", audioOnTimeUpdate);
     audio.addEventListener("pause", audioOnPause);
@@ -1289,8 +1388,8 @@ onMounted(() => {
         resizeObserver.disconnect();
         window.removeEventListener("wheel", windowOnWheel);
         window.removeEventListener("keydown", windowOnKeyDown);
-        window.removeEventListener("blur", windowOnBlur);
-        window.removeEventListener("focus", windowOnFocus);
+        removeWindowFocusListener();
+        removeWindowBlurListener();
         audio.removeEventListener("timeupdate", audioOnTimeUpdate);
         audio.removeEventListener("pause", audioOnPause);
         audio.removeEventListener("play", audioOnPlay);

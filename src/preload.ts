@@ -1,15 +1,21 @@
 /**
+ * @license MIT
+ * Copyright © 2025 程序小袁_2573. All rights reserved.
+ * Licensed under MIT (https://opensource.org/licenses/MIT)
+ *
  * 这个文件是预加载脚本文件，把 background.ts 提供的 API 暴露给渲染进程使用。
  * 渲染进程可以直接使用 window.electronAPI 访问到这些 API。
  * 如果要查看 API 的具体代码实现，请查看 background.ts 文件。
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { contextBridge, ipcRenderer } from "electron";
-import type { defaultSettings } from "./managers/settings";
+import type { defaultSettings } from "./managers/renderer/settings";
 import type { ChartReadResult } from "./models/chartPackage";
-import { ProgressInfo, UpdateDownloadedEvent, UpdateInfo } from "electron-updater";
-import { Replace } from "./tools/typeTools";
-import { NoteType } from "./models/note";
+import type { ProgressInfo, UpdateDownloadedEvent, UpdateInfo } from "electron-updater";
+import type { Replace } from "./tools/typeTools";
+import type { HitSoundInfo } from "./managers/main/videoRenderer";
 
 const electronAPI: ElectronAPI = {
     importChart: (chartPackagePath) => ipcRenderer.invoke("import-chart", chartPackagePath),
@@ -38,31 +44,72 @@ const electronAPI: ElectronAPI = {
     downloadUpdate: () => ipcRenderer.invoke("download-update"),
     quitAndInstall: () => ipcRenderer.invoke("quit-and-install"),
     onUpdateChecking(callback) {
-        ipcRenderer.on("update-checking", () => callback());
+        const listener = () => callback();
+        ipcRenderer.on("update-checking", listener);
+        return () => {
+            ipcRenderer.off("update-checking", listener);
+        };
     },
     onUpdateAvailable(callback) {
-        ipcRenderer.on("update-available", (event, info) => callback(info));
+        const listener = (event: unknown, info: typeof callback extends (arg: infer T) => void ? T : never) => callback(info);
+        ipcRenderer.on("update-available", listener);
+        return () => {
+            ipcRenderer.off("update-available", listener);
+        };
     },
     onUpdateNotAvailable(callback) {
-        ipcRenderer.on("update-not-available", (event, info) => callback(info));
+        const listener = (event: unknown, info: typeof callback extends (arg: infer T) => void ? T : never) => callback(info);
+        ipcRenderer.on("update-not-available", listener);
+        return () => {
+            ipcRenderer.off("update-not-available", listener);
+        };
     },
     onUpdateDownloadProgress(callback) {
-        ipcRenderer.on("update-download-progress", (event, progress) => callback(progress));
+        const listener = (event: unknown, progress: typeof callback extends (arg: infer T) => void ? T : never) => callback(progress);
+        ipcRenderer.on("update-download-progress", listener);
+        return () => {
+            ipcRenderer.off("update-download-progress", listener);
+        };
     },
     onUpdateDownloaded(callback) {
-        ipcRenderer.on("update-downloaded", (event, info) => callback(info));
+        const listener = (event: unknown, info: typeof callback extends (arg: infer T) => void ? T : never) => callback(info);
+        ipcRenderer.on("update-downloaded", listener);
+        return () => {
+            ipcRenderer.off("update-downloaded", listener);
+        };
     },
     onUpdateError(callback) {
-        ipcRenderer.on("update-error", (event, error) => callback(error));
+        const listener = (event: unknown, error: typeof callback extends (arg: infer T) => void ? T : never) => callback(error);
+        ipcRenderer.on("update-error", listener);
+        return () => {
+            ipcRenderer.off("update-error", listener);
+        };
     },
-    startVideoRendering: (chartId, fps, outputPath) => ipcRenderer.invoke("start-video-rendering", chartId, fps, outputPath),
-    sendFrameData: (frameDataUrl, currentFrame, totalFrames) => ipcRenderer.invoke("send-frame-data", frameDataUrl, currentFrame, totalFrames),
+    startVideoRendering: (config) => ipcRenderer.invoke("start-video-rendering", config),
+    sendFrameData: (frameDataUrl) => ipcRenderer.invoke("send-frame-data", frameDataUrl),
     finishVideoRendering: (outputPath) => ipcRenderer.invoke("finish-video-rendering", outputPath),
     addHitSounds: (sounds) => ipcRenderer.invoke("add-hit-sounds", sounds),
     cancelVideoRendering: () => ipcRenderer.invoke("cancel-video-rendering"),
-    onVideoRenderingProgress(callback) {
-        ipcRenderer.on("video-rendering-progress", (event, progress) => callback(progress));
+    onWindowFocus(callback) {
+        const listener = () => callback();
+        ipcRenderer.on("window-focus", listener);
+        return () => {
+            ipcRenderer.off("window-focus", listener);
+        };
     },
+    onWindowBlur(callback) {
+        const listener = () => callback();
+        ipcRenderer.on("window-blur", listener);
+        return () => {
+            ipcRenderer.off("window-blur", listener);
+        };
+    },
+    on(name, callback) {
+        ipcRenderer.on(name, callback);
+    },
+    off(name, callback) {
+        ipcRenderer.off(name, callback);
+    }
 };
 
 interface ElectronAPI {
@@ -157,18 +204,18 @@ interface ElectronAPI {
     /** 退出并安装更新 */
     quitAndInstall: () => Promise<void>
 
-    onUpdateChecking: (callback: () => void) => void
-    onUpdateAvailable: (callback: (info: Replace<UpdateInfo, "releaseNotes", string>) => void) => void
-    onUpdateNotAvailable: (callback: (info: Replace<UpdateInfo, "releaseNotes", string>) => void) => void
-    onUpdateDownloadProgress: (callback: (progress: ProgressInfo) => void) => void
-    onUpdateDownloaded: (callback: (info: Replace<UpdateDownloadedEvent, "releaseNotes", string>) => void) => void
-    onUpdateError: (callback: (error: Error) => void) => void
+    onUpdateChecking: (callback: () => void) => ()=>void
+    onUpdateAvailable: (callback: (info: Replace<UpdateInfo, "releaseNotes", string>) => void) => ()=>void
+    onUpdateNotAvailable: (callback: (info: Replace<UpdateInfo, "releaseNotes", string>) => void) => ()=>void
+    onUpdateDownloadProgress: (callback: (progress: ProgressInfo) => void) => ()=>void
+    onUpdateDownloaded: (callback: (info: Replace<UpdateDownloadedEvent, "releaseNotes", string>) => void) => ()=>void
+    onUpdateError: (callback: (error: Error) => void) => ()=>void
 
     /** Start video export session */
-    startVideoRendering: (chartId: string, fps: number, outputPath: string) => Promise<void>
+    startVideoRendering: (config: RenderingConfig) => Promise<void>
 
     /** Send frame data to video export session */
-    sendFrameData: (frameDataUrl: string, currentFrame: number, totalFrames: number) => Promise<void>
+    sendFrameData: (frameDataUrl: string) => Promise<void>
 
     /** Finish video export and save to file */
     finishVideoRendering: (outputPath: string) => Promise<void>
@@ -177,30 +224,20 @@ interface ElectronAPI {
 
     cancelVideoRendering: () => Promise<void>
 
-    onVideoRenderingProgress: (callback: (progress: VideoRenderingProgress) => void) => void
+    onWindowFocus: (callback: () => void) => ()=>void
+
+    onWindowBlur: (callback: () => void) => ()=>void
+
+    on: (name: string, callback: (event: unknown, ...args: any[]) => void) => void
+    off: (name: string, callback: (event: unknown, ...args: any[]) => void) => void
 }
 
-export interface HitSoundInfo {
-    type: NoteType;
-    time: number;
-}
-
-export interface VideoRenderingProgress {
-
-    /** 渲染状态信息 */
-    status: string;
-
-    /** 已经处理的数量 */
-    processed: number;
-
-    /** 总数量 */
-    total: number;
-
-    /** 处理时所花费的时间 */
-    time: number;
-
-    /** 状态码 */
-    code: "MERGING_HITSOUNDS" | "RENDERING_FRAMES"
+export interface RenderingConfig {
+    chartId: string;
+    fps: number;
+    outputPath: string;
+    startTime: number;
+    endTime: number;
 }
 
 declare global {

@@ -1,10 +1,13 @@
+<!-- Copyright © 2025 程序小袁_2573. All rights reserved. -->
+<!-- Licensed under MIT (https://opensource.org/licenses/MIT) -->
+
 <template>
     <ElHeader class="header">
         <h1 class="top-title">
             欢迎使用 Phiedit 2573 谱面编辑器！
         </h1>
         <em class="version">
-            当前版本：v0.1.0
+            当前版本：v0.2.0
         </em>
     </ElHeader>
     <MyGridContainer

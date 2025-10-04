@@ -1,3 +1,9 @@
+/**
+ * @license MIT
+ * Copyright © 2025 程序小袁_2573. All rights reserved.
+ * Licensed under MIT (https://opensource.org/licenses/MIT)
+ */
+
 import { isNumber, isObject, isString } from "lodash";
 import ChartError from "./error";
 import { IObjectizable } from "./objectizable";
@@ -35,8 +41,8 @@ export interface IChartMeta {
     song?: string,
 }
 
-/** 当前是 0.1.0 版本 */
-const VERSION = 10;
+/** 当前是 0.2.0 版本 */
+const VERSION = 20;
 
 /** 谱面元数据，是响应式的 */
 export class ChartMeta implements IChartMeta, IObjectizable {

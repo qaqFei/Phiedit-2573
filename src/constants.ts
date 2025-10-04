@@ -1,3 +1,9 @@
+/**
+ * @license MIT
+ * Copyright © 2025 程序小袁_2573. All rights reserved.
+ * Licensed under MIT (https://opensource.org/licenses/MIT)
+ */
+
 import { Box } from "@/tools/box";
 import { RGBAcolor, RGBcolor } from "@/tools/color";
 import { Point } from "@/tools/mathUtils";
@@ -6,6 +12,9 @@ import { Point } from "@/tools/mathUtils";
 
 /** 一些常量，每个属性都必须是 static readonly 的 */
 export default class Constants {
+    /** 编码格式 */
+    static readonly ENCODING = "utf-8";
+
     /** canvas 的宽度 */
     static readonly CANVAS_WIDTH = 1350;
 
@@ -238,7 +247,7 @@ export default class Constants {
         "没灵感写不下去了？不如上B站看看别人写的谱吧",
         "除了判定线表演，不如再加一些音符表演吧！",
         "“Phigros里没有曲线，就像Minecraft里没有圆一样”（这时我缓缓掏出了判定线贴图）",
-        "有问题欢迎反馈，点左下角链接并粘贴到浏览器，可以给我发私信，或者在我的视频底下发评论",
+        "有问题欢迎反馈，点击左下角的Github仓库链接，可以给我提Issue",
         "误删了谱面？进入Appdata\\Roaming\\phiedit2573\\charts，复制文件夹名，并添加到list.json中",
         "本软件不含任何病毒！请忽略杀毒软件关于本软件的一切提示！",
     ] as const).map(str => `Tip: ${str}` as const);

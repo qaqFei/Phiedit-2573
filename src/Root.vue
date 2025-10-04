@@ -1,3 +1,6 @@
+<!-- Copyright © 2025 程序小袁_2573. All rights reserved. -->
+<!-- Licensed under MIT (https://opensource.org/licenses/MIT) -->
+
 <template>
     <!-- 由于要使用 top-level-await，所以要用 Suspense -->
     <Suspense>
@@ -143,7 +146,9 @@ const downloadProgress = ref<ProgressInfo | null>(null);
 const error = ref<Error | null>(null);
 
 function showUpdateDialog() {
-    isShow.value = true;
+    if (!isShow.value) {
+        isShow.value = true;
+    }
 }
 
 function checkForUpdates() {
@@ -188,7 +193,7 @@ window.electronAPI.onUpdateDownloaded((info) => {
 window.electronAPI.onUpdateError((err) => {
     updateState.value = UpdateState.ERROR;
     error.value = err;
-    showUpdateDialog();
+    console.error(err);
 });
 </script>
 <style scoped>
