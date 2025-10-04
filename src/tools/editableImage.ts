@@ -1,9 +1,15 @@
+/**
+ * @license MIT
+ * Copyright © 2025 程序小袁_2573. All rights reserved.
+ * Licensed under MIT (https://opensource.org/licenses/MIT)
+ */
+
 import canvasUtils from "./canvasUtils";
-import { RGBcolor, RGBAcolor } from "./color";
+import { RGBcolor, RGBAcolor, RGBA_LENGTH } from "./color";
 export default class EditableImage {
     canvas: HTMLCanvasElement;
     constructor(a: HTMLImageElement | HTMLCanvasElement, left?: number, top?: number, width?: number, height?: number) {
-        this.canvas = document.createElement('canvas');
+        this.canvas = document.createElement("canvas");
         const ctx = canvasUtils.getContext(this.canvas);
         this.canvas.width = width ?? a.width;
         this.canvas.height = height ?? a.height;
@@ -15,7 +21,7 @@ export default class EditableImage {
         canvas.height = height;
         return new EditableImage(canvas);
     }
-    static text(text: string, font = "Arial", size = 50, color: RGBcolor) {
+    static text(text: string, size: number, color: RGBcolor = [255, 255, 255], font = "Arial") {
         const canvas = document.createElement("canvas");
         const ctx = canvasUtils.getContext(canvas);
         ctx.font = size + "px " + font;
@@ -61,7 +67,7 @@ export default class EditableImage {
         return this;
     }
     stretchScale(scaleX: number = 1, scaleY: number = 1) {
-        if (scaleX == 1 && scaleY == 1) return this;
+        if (scaleX === 1 && scaleY === 1) return this;
         return this.stretch(this.canvas.width * scaleX, this.canvas.height * scaleY);
     }
     cutBottom(length: number) {
@@ -115,10 +121,11 @@ export default class EditableImage {
         const ctx = canvasUtils.getContext(canvas);
         canvas.width = this.canvas.width;
         canvas.height = this.canvas.height;
-        for (let i = 0; i < imageData.data.length; i += 4) {
+        for (let i = 0; i < imageData.data.length; i += RGBA_LENGTH) {
             imageData.data[i] = color[0];
             imageData.data[i + 1] = color[1];
             imageData.data[i + 2] = color[2];
+
             /*
             if (color.length == 4) {
                 imageData.data[i + 3] *= color[3] / 0xff;
@@ -129,10 +136,22 @@ export default class EditableImage {
         this.canvas = canvas;
         return this;
     }
-    addColor(color: RGBcolor, force: number) {
+    addColor(color: RGBcolor) {
+        // 按照原颜色乘以新颜色再除以255，得到叠加后的颜色
         const ctx = canvasUtils.getContext(this.canvas);
         const imageData = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-        for (let i = 0; i < imageData.data.length; i += 4) {
+        for (let i = 0; i < imageData.data.length; i += RGBA_LENGTH) {
+            imageData.data[i] = imageData.data[i] * color[0] / 0xff;
+            imageData.data[i + 1] = imageData.data[i + 1] * color[1] / 0xff;
+            imageData.data[i + 2] = imageData.data[i + 2] * color[2] / 0xff;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        return this;
+    }
+    addColorWithForce(color: RGBcolor, force: number) {
+        const ctx = canvasUtils.getContext(this.canvas);
+        const imageData = ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        for (let i = 0; i < imageData.data.length; i += RGBA_LENGTH) {
             imageData.data[i] += (color[0] - imageData.data[i]) * force;
             imageData.data[i + 1] += (color[1] - imageData.data[i + 1]) * force;
             imageData.data[i + 2] += (color[2] - imageData.data[i + 2]) * force;
@@ -141,7 +160,7 @@ export default class EditableImage {
         return this;
     }
     clone() {
-        const newCanvas = document.createElement('canvas');
+        const newCanvas = document.createElement("canvas");
         const newCtx = canvasUtils.getContext(newCanvas);
         newCanvas.width = this.canvas.width;
         newCanvas.height = this.canvas.height;

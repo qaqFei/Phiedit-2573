@@ -1,3 +1,6 @@
+<!-- Copyright © 2025 程序小袁_2573. All rights reserved. -->
+<!-- Licensed under MIT (https://opensource.org/licenses/MIT) -->
+
 <template>
     <MySelect
         ref="select"
@@ -5,37 +8,39 @@
         v-bind="$attrs"
         :options="[
             {
-                label: '音符类型：Tap',
+                label: 'Tap',
                 value: NoteType.Tap,
                 text: 'Tap',
             },
             {
-                label: '音符类型：Drag',
+                label: 'Drag',
                 value: NoteType.Drag,
                 text: 'Drag',
             },
             {
-                label: '音符类型：Flick',
+                label: 'Flick',
                 value: NoteType.Flick,
                 text: 'Flick',
             },
             {
-                label: '音符类型：Hold',
+                label: 'Hold',
                 value: NoteType.Hold,
                 text: 'Hold',
             },
         ]"
         @change="emit('change', model)"
-    />
+    >
+        音符类型
+    </MySelect>
 </template>
 <script setup lang="ts">
-import { useTemplateRef } from 'vue';
-import MySelect from './MySelect.vue';
-import { NoteType } from '@/models/note';
+import { useTemplateRef } from "vue";
+import MySelect from "./MySelect.vue";
+import { NoteType } from "@/models/note";
 const model = defineModel<NoteType>({
     required: true
 });
-const select = useTemplateRef('select');
+const select = useTemplateRef("select");
 const emit = defineEmits<{
     change: [NoteType]
 }>();

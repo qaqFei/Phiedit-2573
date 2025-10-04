@@ -1,6 +1,12 @@
+<!-- Copyright © 2025 程序小袁_2573. All rights reserved. -->
+<!-- Licensed under MIT (https://opensource.org/licenses/MIT) -->
+
 <template>
-    <ElTooltip>
-        <ElIcon size="15">
+    <ElTooltip trigger="click">
+        <ElIcon
+            size="15"
+            @click="handleIconClick"
+        >
             <QuestionFilled class="question-mark" />
         </ElIcon>
         <template #content>
@@ -9,8 +15,13 @@
     </ElTooltip>
 </template>
 <script setup lang="ts">
-import { ElIcon, ElTooltip } from 'element-plus';
-import { QuestionFilled } from '@element-plus/icons-vue';
+import { ElIcon, ElTooltip } from "element-plus";
+import { QuestionFilled } from "@element-plus/icons-vue";
+
+const handleIconClick = (event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+};
 </script>
 <style scoped>
 .question-mark {

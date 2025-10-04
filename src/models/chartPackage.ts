@@ -1,9 +1,18 @@
+/**
+ * @license MIT
+ * Copyright © 2025 程序小袁_2573. All rights reserved.
+ * Licensed under MIT (https://opensource.org/licenses/MIT)
+ */
+
 import { Chart, IChart } from "./chart";
+import ChartError from "./error";
+import { Extra, IExtra } from "./extra";
 export interface IChartPackage {
     chart: IChart;
     background: HTMLImageElement;
     musicSrc: string;
-    textures: Record<string, HTMLImageElement>
+    textures: Record<string, HTMLImageElement>;
+    extra: IExtra;
 }
 export interface ChartConfig {
     backgroundDarkness: number,
@@ -13,95 +22,40 @@ export interface ChartConfig {
     chartSpeed: number,
     noteSize: number,
 }
+export const SYMBOL_CHART_JSON_ERROR = Symbol("Chart JSON Error");
+export const SYMBOL_EXTRA_JSON_ERROR = Symbol("Extra JSON Error");
 export class ChartPackage implements IChartPackage {
     chart: Chart;
     background: HTMLImageElement;
     musicSrc: string;
     textures: Record<string, HTMLImageElement>;
+    extra: Extra;
+    errors: ChartError[] = [];
     constructor(chartPackage: IChartPackage) {
         this.chart = new Chart(chartPackage.chart);
         this.musicSrc = chartPackage.musicSrc;
         this.background = chartPackage.background;
         this.textures = chartPackage.textures;
+        this.extra = new Extra(chartPackage.extra);
+
+        this.errors.push(...this.chart.errors);
+        this.errors.push(...this.extra.errors);
+
+        // 强制使 extra.bpm 与 chart.BPMList 相同
+        this.extra.bpm.length = 0;
+        this.extra.bpm.push(...this.chart.BPMList);
+        this.extra.calculateSeconds();
     }
-    // static load(file: Blob, progressHandler?: (progress: string) => void, p = 2, signal?: AbortSignal) {
-    //     return new Promise<ChartPackage>((resolve, reject) => {
-    //         if (signal) {
-    //             signal.onabort = () => {
-    //                 reject("Loading is aborted");
-    //             }
-    //         }
-    //         const reader = new FileReaderExtends();
-    //         resolve(reader.readAsync(file, 'arraybuffer', function (e) {
-    //             if (progressHandler)
-    //                 progressHandler(`读取文件: ${formatData(e.loaded)} / ${formatData(file.size)} ( ${(e.loaded / file.size * 100).toFixed(p)}% )`);
-    //         }).then(async result => {
-    //             const zip = await JSZip.loadAsync(result);
-    //             const { musicFile, backgroundFile, chartFile } = await ChartPackage.findFileInZip(zip);
-    //             const _showProgress = () => {
-    //                 if (progressHandler) progressHandler(
-    //                     `音乐已加载${progress.music.toFixed(p)}%\n` +
-    //                     `曲绘已加载${progress.background.toFixed(p)}%\n` +
-    //                     `谱面已加载${progress.chart.toFixed(p)}%\n` +
-    //                     `判定线贴图已加载${MathUtils.average(progress.textures).toFixed(p)}%`
-    //                 )
-    //             }
-    //             const progress = {
-    //                 music: 0,
-    //                 background: 0,
-    //                 chart: 0,
-    //                 textures: new Array<number>()
-    //             }
-    //             const textureBlobs: Record<string, Blob> = {};
-    //             const promises: Promise<void>[] = [];
-    //             Object.entries(zip.files).forEach(function ([filePath, file]) {
-    //                 if (/\.(jpg|jpeg|png|gif|bmp|svg)$/.test(filePath)) {
-    //                     const index = progress.textures.length;
-    //                     progress.textures.push(0);
-    //                     const promise = file.async('blob', function (meta) {
-    //                         progress.textures[index] = meta.percent;
-    //                         _showProgress();
-    //                     });
-    //                     const fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
-    //                     promises.push(promise.then(blob => {
-    //                         textureBlobs[fileName] = blob;
-    //                     }));
-    //                 }
-    //             });
-    //             const [musicSrc, background, chart, textures] = await Promise.all([
-    //                 musicFile.async('blob', meta => {
-    //                     progress.music = meta.percent;
-    //                     _showProgress();
-    //                 }).then(MediaUtils.createObjectURL),
-
-    //                 backgroundFile.async('blob', meta => {
-    //                     progress.background = meta.percent;
-    //                     _showProgress();
-    //                 })
-    //                     .then(MediaUtils.createImage),
-
-    //                 chartFile.async('text', meta => {
-    //                     progress.chart = meta.percent;
-    //                     _showProgress();
-    //                 })
-    //                     .then((chartString) => JSON.parse(chartString)),
-
-    //                 Promise.all(promises)
-    //                     .then(async () => {
-    //                         const textures: Record<string, HTMLImageElement> = {};
-    //                         for (const textureName in textureBlobs) {
-    //                             if (Object.prototype.hasOwnProperty.call(textureBlobs, textureName)) {
-    //                                 textures[textureName] = await MediaUtils.createImage(textureBlobs[textureName]);
-    //                             }
-    //                         }
-    //                         return textures;
-    //                     })
-    //             ]);
-    //             return new ChartPackage({ musicSrc, background, chart, textures });
-    //         }))
-    //     })
-    // }
 }
+
+export interface ChartReadResult {
+    musicData: ArrayBuffer,
+    backgroundData: ArrayBuffer,
+    chartContent: string,
+    textures: Record<string, ArrayBuffer>,
+    extraContent: string
+}
+
 /*
 优先寻找info.txt，若没有该文件，或者该文件里没有音乐、图片和json文件的路径，下一步
 随机选一个json文件，看是否有META.song和META.background，若没有，下一步

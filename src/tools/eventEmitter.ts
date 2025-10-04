@@ -1,28 +1,67 @@
+/**
+ * @license MIT
+ * Copyright © 2025 程序小袁_2573. All rights reserved.
+ * Licensed under MIT (https://opensource.org/licenses/MIT)
+ */
+
 export default class EventEmitter<T extends Record<keyof T, unknown[]>> {
-    listeners: { [K in keyof T]?: ((...args: T[K]) => void)[] };
+    listeners: Listeners<T>;
     constructor() {
         this.listeners = {};
     }
-    on<K extends keyof T>(event: K, listener: (...args: T[K]) => void) {
+    on<K extends keyof T>(event: K, handler: (...args: T[K]) => void | Promise<void>, priority = 0) {
         if (!this.listeners[event]) {
             this.listeners[event] = [];
         }
-        this.listeners[event].push(listener);
+        this.listeners[event].push({
+            handler,
+            priority
+        });
     }
-    off<K extends keyof T>(event: K, listener: (...args: T[K]) => void) {
+    off<K extends keyof T>(event: K, listener: (...args: T[K]) => void | Promise<void>) {
         if (this.listeners[event]) {
-            this.listeners[event] = this.listeners[event].filter(l => l !== listener);
+            this.listeners[event] = this.listeners[event].filter(l => l.handler !== listener);
         }
     }
     emit<K extends keyof T>(event: K, ...args: T[K]) {
         if (this.listeners[event]) {
-            if (this.listeners[event].length == 0)
-                console.error(`No listeners for ${String(event)} event`);
-            else
-                this.listeners[event].forEach((listener) => listener(...args));
+            if (this.listeners[event].length === 0) {
+                console.error(`${String(event)} 事件没有被任何监听器监听`);
+            }
+            else {
+                this.listeners[event]
+                    .toSorted((a, b) => a.priority - b.priority)
+                    .forEach(({ handler }) => {
+                        handler(...args);
+                    });
+            }
+        }
+    }
+    async emitAsync<K extends keyof T>(event: K, ...args: T[K]) {
+        if (this.listeners[event]) {
+            if (this.listeners[event].length === 0) {
+                console.error(`${String(event)} 事件没有被任何监听器监听`);
+            }
+            else {
+                const listeners = this.listeners[event].toSorted((a, b) => a.priority - b.priority);
+                for (const listener of listeners) {
+                    await listener.handler(...args);
+                }
+            }
         }
     }
     destroy() {
         this.listeners = {};
     }
+}
+
+type Listeners<T extends Record<keyof T, unknown[]>> = {
+    [K in keyof T]?: {
+
+        /** 监听器函数 */
+        handler: (...args: T[K]) => void | Promise<void>,
+
+        /** 优先级，数字越小优先级越高 */
+        priority: number
+    }[]
 }

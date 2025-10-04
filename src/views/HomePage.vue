@@ -1,10 +1,13 @@
+<!-- Copyright © 2025 程序小袁_2573. All rights reserved. -->
+<!-- Licensed under MIT (https://opensource.org/licenses/MIT) -->
+
 <template>
     <ElHeader class="header">
         <h1 class="top-title">
-            欢迎使用Phiedit 2573谱面编辑器！
+            欢迎使用 Phiedit 2573 谱面编辑器！
         </h1>
         <em class="version">
-            当前版本：v0.1.0
+            当前版本：v0.2.0
         </em>
     </ElHeader>
     <MyGridContainer
@@ -32,7 +35,7 @@
                     v-model="name"
                     placeholder="请输入谱面名称"
                 />
-
+                <em>注意：在点击“确定”添加谱面之后，请先进入谱面，填写好BPM，调整好偏移后再开始写谱！</em>
                 <MyButton
                     type="success"
                     @click="catchErrorByMessage(addChart, '添加谱面')"
@@ -72,16 +75,25 @@
             </ElCard>
         </RouterLink>
     </div>
+    <ElFooter>
+        <MyLink
+            href="https://teamflos.github.io/phira-docs/index.html"
+            class="phira-link"
+        >
+            点击此链接以进入 Phira 文档，可查看关于谱面文件格式的更多信息。该文档不是本软件的文档，仅供参考
+        </MyLink>
+    </ElFooter>
 </template>
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
-import { ElCard, ElHeader, ElInput } from 'element-plus';
-import MyButton from '@/myElements/MyButton.vue';
-import { inject, onErrorCaptured, ref } from 'vue';
-import MediaUtils from '@/tools/mediaUtils';
-import MyDialog from '@/myElements/MyDialog.vue';
-import { catchErrorByMessage } from '@/tools/catchError';
-import MyGridContainer from '@/myElements/MyGridContainer.vue';
+import { useRouter } from "vue-router";
+import { ElCard, ElFooter, ElHeader, ElInput } from "element-plus";
+import MyButton from "@/myElements/MyButton.vue";
+import { inject, ref } from "vue";
+import MediaUtils from "@/tools/mediaUtils";
+import MyDialog from "@/myElements/MyDialog.vue";
+import { catchErrorByMessage } from "@/tools/catchError";
+import MyGridContainer from "@/myElements/MyGridContainer.vue";
+import MyLink from "@/myElements/MyLink.vue";
 
 const router = useRouter();
 const musicFileUrl = ref<string | undefined>();
@@ -102,7 +114,7 @@ const chartNames: Record<string, string> = {};
 const levels: Record<string, string> = {};
 for (let i = 0; i < chartList.length; i++) {
     const chartId = chartList[i];
-    const chartObject = await window.electronAPI.readChart(chartId);
+    const chartObject = await window.electronAPI.loadChart(chartId);
     const chartInfo = await window.electronAPI.readChartInfo(chartId);
     const src = await MediaUtils.createObjectURL(chartObject.backgroundData);
     backgroundSrcs[chartId] = src;
@@ -113,6 +125,10 @@ loadEnd();
 
 async function loadMusic() {
     const filePaths = await window.electronAPI.showOpenMusicDialog();
+    if (!filePaths) {
+        throw new Error("操作已取消");
+    }
+
     if (filePaths.length === 0) {
         throw new Error("未选择音乐文件");
     }
@@ -120,21 +136,29 @@ async function loadMusic() {
 }
 
 async function loadBackground() {
-    const filePaths = await window.electronAPI.showOpenBackgroundDialog();
+    const filePaths = await window.electronAPI.showOpenImageDialog();
+    if (!filePaths) {
+        throw new Error("操作已取消");
+    }
+
     if (filePaths.length === 0) {
         throw new Error("未选择背景文件");
     }
     backgroundFileUrl.value = filePaths[0];
 }
 
-
 async function loadChart() {
-    const fileUrls = await window.electronAPI.showOpenChartDialog();
-    if (fileUrls.length === 0) {
+    const filePaths = await window.electronAPI.showOpenChartDialog();
+    if (!filePaths) {
+        throw new Error("操作已取消");
+    }
+
+    if (filePaths.length === 0) {
         throw new Error("未选择谱面文件");
     }
-    const fileUrl = fileUrls[0];
-    const chartId = await window.electronAPI.loadChart(fileUrl);
+
+    const filePath = filePaths[0];
+    const chartId = await window.electronAPI.importChart(filePath);
     router.push(`/editor?chartId=${chartId}`);
 }
 
@@ -142,9 +166,11 @@ async function addChart() {
     if (!musicFileUrl.value || !backgroundFileUrl.value) {
         throw new Error("请先选择音乐和背景");
     }
+
     if (name.value.trim() === "") {
         throw new Error("请填写名称");
     }
+
     const chartId = await window.electronAPI.addChart(musicFileUrl.value, backgroundFileUrl.value, name.value);
     router.push(`/editor?chartId=${chartId}`);
 }
@@ -152,12 +178,6 @@ async function addChart() {
 function imageOnLoad(chartId: string) {
     URL.revokeObjectURL(backgroundSrcs[chartId]);
 }
-
-onErrorCaptured((err) => {
-    console.error('组件初始化错误:', err)
-    // 这里可以添加用户友好的错误提示
-    return false // 阻止错误继续传播
-})
 </script>
 <style>
 .header {
@@ -182,8 +202,9 @@ onErrorCaptured((err) => {
 
 .chart-list {
     display: grid;
+    padding: 0 10px;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
+    gap: 10px;
 }
 
 .chart-card {
@@ -230,5 +251,11 @@ a {
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+.el-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 </style>

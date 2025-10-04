@@ -1,9 +1,13 @@
+<!-- Copyright © 2025 程序小袁_2573. All rights reserved. -->
+<!-- Licensed under MIT (https://opensource.org/licenses/MIT) -->
+
 <template>
     <MyInput
+        ref="inputBeats"
         v-model="inputData.beatsString"
-        v-model:when="model"
         v-bind="$attrs"
         @input="emit('input', inputData.beatsString)"
+        @change="emit('change', inputData.beatsString)"
     >
         <template
             v-if="slots.prepend"
@@ -33,22 +37,36 @@
 </template>
 
 <script setup lang="ts">
-import { Beats, formatBeats, parseBeats, validateBeats } from "@/models/beats";
+import { Beats, formatBeats, parseBeats, makeSureBeatsValid } from "@/models/beats";
 import MyInput from "./MyInput.vue";
-import { reactive, useSlots } from "vue";
+import { reactive, useSlots, useTemplateRef, watch } from "vue";
+const inputBeats = useTemplateRef("inputBeats");
 const inputData = reactive({
     get beatsString() {
-        return model.value == undefined ? "" : formatBeats(model.value);
+        return model.value === undefined ? "" : formatBeats(model.value);
     },
     set beatsString(value: string) {
-        model.value = validateBeats(parseBeats(value));
+        model.value = makeSureBeatsValid(parseBeats(value));
+        isInternalUpdate = true;
     }
 });
+let isInternalUpdate = false;
 const emit = defineEmits<{
     input: [string]
+    change: [string]
 }>();
 const slots: ReturnType<typeof useSlots> = useSlots();
-const model = defineModel<Beats | undefined>({
-    required: true
+const model = defineModel<Beats | undefined>();
+watch(model, () => {
+    if (!isInternalUpdate) {
+        updateShowedValue();
+    }
+});
+function updateShowedValue() {
+    inputBeats.value?.updateShowedValue();
+    isInternalUpdate = false;
+}
+defineExpose({
+    updateShowedValue
 });
 </script>

@@ -1,5 +1,8 @@
+<!-- Copyright © 2025 程序小袁_2573. All rights reserved. -->
+<!-- Licensed under MIT (https://opensource.org/licenses/MIT) -->
+
 <template>
-    <div class="chartmeta-panel">
+    <div class="chartmeta-panel right-inner">
         <Teleport :to="props.titleTeleport">
             谱面基本信息
         </Teleport>
@@ -28,26 +31,22 @@
                 等级
             </template>
         </MyInput>
-        <MyInputNumber v-model="chart.META.offset">
+        <MyInput
+            v-model="chartId"
+            disabled
+        >
             <template #prepend>
-                偏移
+                ID
             </template>
-        </MyInputNumber>
+        </MyInput>
     </div>
 </template>
 <script setup lang="ts">
-import store from '@/store';
-import MyInput from '../myElements/MyInput.vue';
-import MyInputNumber from '../myElements/MyInputNumber.vue';
+import store from "@/store";
+import MyInput from "../myElements/MyInput.vue";
 const props = defineProps<{
     titleTeleport: string
 }>();
 const chart = store.useChart();
+const chartId = store.getChartId();
 </script>
-<style scoped>
-.chartmeta-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>

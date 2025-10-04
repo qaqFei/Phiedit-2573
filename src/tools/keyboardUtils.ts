@@ -1,3 +1,9 @@
+/**
+ * @license MIT
+ * Copyright © 2025 程序小袁_2573. All rights reserved.
+ * Licensed under MIT (https://opensource.org/licenses/MIT)
+ */
+
 export default class KeyboardUtils {
     static createKeyOptions(e: KeyboardEvent | MouseEvent) {
         return {
@@ -7,7 +13,7 @@ export default class KeyboardUtils {
             meta: e.metaKey,
         };
     }
-    
+
     /**
      * 将键盘事件对象格式化为可读的按键组合字符串
      *
@@ -21,16 +27,19 @@ export default class KeyboardUtils {
      */
     static formatKey(e: KeyboardEvent) {
         // 特殊情况，修饰键自身事件
-        if (e.key == "Control") {
+        if (e.key === "Control") {
             return "Ctrl";
         }
-        if (e.key == "Shift") {
+
+        if (e.key === "Shift") {
             return "Shift";
         }
-        if (e.key == "Alt") {
+
+        if (e.key === "Alt") {
             return "Alt";
         }
-        if (e.key == "Meta") {
+
+        if (e.key === "Meta") {
             return "Meta";
         }
 
@@ -66,7 +75,7 @@ export default class KeyboardUtils {
                 default:
                     // 判断按键是否为单个字符，如果是则转换为大写，否则返回原始值
                     // 避免将Home、End等按键转换为大写
-                    if (key.length == 1) return key.toUpperCase();
+                    if (key.length === 1) return key.toUpperCase();
                     else return key;
             }
         }

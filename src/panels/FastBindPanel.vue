@@ -1,11 +1,20 @@
+<!-- Copyright © 2025 程序小袁_2573. All rights reserved. -->
+<!-- Licensed under MIT (https://opensource.org/licenses/MIT) -->
+
 <template>
-    <div class="fast-bind-panel">
+    <div class="fast-bind-panel right-inner">
         <Teleport :to="props.titleTeleport">
             快速绑线
         </Teleport>
         <em>提示：被绑线的判定线必须是该线的子线</em>
+        <p>
+            当前为{{ stateManager.state.currentJudgeLineNumber }}号线
+        </p>
         <p v-if="childLines.length === 0">
             暂无满足条件的判定线
+        </p>
+        <p v-else>
+            有以下判定线可以绑线：（请选择想绑线的判定线）
         </p>
         <MyGridContainer
             :columns="5"
@@ -15,7 +24,7 @@
                 v-for="(line, i) in childLines"
                 :key="i - 1"
             >
-                <ElCheckboxButton v-model="isSelected[line.id]">
+                <ElCheckboxButton v-model="stateManager.cache.fastBind.judgeLinesIsSelected[line.id]">
                     {{ line.id }}
                 </ElCheckboxButton>
             </template>
@@ -32,7 +41,7 @@
                 +8
             </MyButton>
         </MyGridContainer>
-        <MyInputBeats v-model="eventLength">
+        <MyInputBeats v-model="stateManager.cache.fastBind.eventLength">
             <template #prepend>
                 事件长度
                 <MyQuestionMark>
@@ -43,7 +52,7 @@
                 </MyQuestionMark>
             </template>
         </MyInputBeats>
-        <MyInputNumber v-model="precision">
+        <MyInputNumber v-model="stateManager.cache.fastBind.precision">
             <template #prepend>
                 精度
                 <MyQuestionMark>
@@ -61,16 +70,15 @@
     </div>
 </template>
 <script setup lang="ts">
-import globalEventEmitter from '@/eventEmitter';
-import { Beats } from '@/models/beats';
-import MyInputBeats from '@/myElements/MyInputBeats.vue';
-import MyInputNumber from '@/myElements/MyInputNumber.vue';
-import MyQuestionMark from '@/myElements/MyQuestionMark.vue';
-import MyGridContainer from '@/myElements/MyGridContainer.vue';
-import MyButton from '@/myElements/MyButton.vue';
-import store from '@/store';
-import { ElCheckboxButton } from 'element-plus';
-import { computed, reactive, ref } from 'vue';
+import globalEventEmitter from "@/eventEmitter";
+import MyInputBeats from "@/myElements/MyInputBeats.vue";
+import MyInputNumber from "@/myElements/MyInputNumber.vue";
+import MyQuestionMark from "@/myElements/MyQuestionMark.vue";
+import MyGridContainer from "@/myElements/MyGridContainer.vue";
+import MyButton from "@/myElements/MyButton.vue";
+import store from "@/store";
+import { ElCheckboxButton } from "element-plus";
+import { computed, onMounted, ref } from "vue";
 
 const props = defineProps<{
     titleTeleport: string
@@ -78,36 +86,36 @@ const props = defineProps<{
 const chart = store.useChart();
 const stateManager = store.useManager("stateManager");
 const u = ref(false);
-const eventLength = ref<Beats>([4, 0, 1]);
-const precision = ref(16);
-const isSelected = reactive(Array(stateManager.judgeLinesCount).fill(false));
+
 const childLines = computed(() => {
-    return chart.judgeLineList.filter(judgeLine => judgeLine.father == stateManager.state.currentJudgeLineNumber + (u.value ? 0 : 0));
-})
+    return chart.judgeLineList.filter(judgeLine => judgeLine.father === stateManager.state.currentJudgeLineNumber + (u.value ? 0 : 0));
+});
 function update() {
     u.value = !u.value;
 }
+
 function addNewJudgeLine(count = 1) {
     for (let i = 0; i < count; i++) {
         const judgeLine = chart.addNewJudgeLine();
         judgeLine.father = stateManager.state.currentJudgeLineNumber;
-        isSelected.push(true);
+        stateManager.cache.fastBind.judgeLinesIsSelected.push(true);
     }
 }
+
 function bindLine() {
     const selectedLineNumbers = [];
-    for (let i = 0; i < isSelected.length; i++) {
-        if (isSelected[i]) {
+    for (let i = 0; i < stateManager.cache.fastBind.judgeLinesIsSelected.length; i++) {
+        if (stateManager.cache.fastBind.judgeLinesIsSelected[i]) {
             selectedLineNumbers.push(i);
         }
     }
-    globalEventEmitter.emit("BIND_LINE", selectedLineNumbers, eventLength.value, precision.value);
+    globalEventEmitter.emit("BIND_LINE");
 }
+
+function updateArrayLength() {
+    stateManager.cache.fastBind.judgeLinesIsSelected = new Array(stateManager.judgeLinesCount).fill(false);
+}
+onMounted(() => {
+    updateArrayLength();
+});
 </script>
-<style scoped>
-.fast-bind-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-</style>
