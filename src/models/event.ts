@@ -7,7 +7,7 @@
 import { BEZIER_POINTS_LENGTH, BezierPoints, cubicBezierEase, easingFuncs, EasingType, isEasingType } from "./easing";
 import { Beats, beatsToSeconds, makeSureBeatsValid, BPM } from "./beats";
 import { isArrayOfNumbers, Optional } from "../tools/typeTools";
-import { RGBcolor } from "../tools/color";
+import { RGBcolor, Oklch2RGB, RGB2Oklch } from "../tools/color";
 import { isObject, isNumber, isString, isInteger, isArray, zip } from "lodash";
 import { checkAndSort } from "@/tools/algorithm";
 import ChartError from "./error";
@@ -907,28 +907,25 @@ export function interpolateNumberEventValue(event: IEvent<number> & ITimeSegment
     }
 }
 
+export function interpolateNumberValue(s: number, e: number, st: number, et: number, seconds: number, easingFunction: Function = (x: number) => x): number {
+    const dx = et - st;
+    const dy = e - s;
+    const sx = seconds - st;
+    const easingFactor = easingFunction(sx / dx);
+    return s + easingFactor * dy;
+}
+
+export function interpolateColorOklch(sColor: RGBcolor, eColor: RGBcolor, interpolater: Function = (x: number) => x): RGBcolor {
+    const [sl, sc, sh] = Oklch2RGB(sColor);
+    const [el, ec, eh] = Oklch2RGB(eColor);
+    const [l, c, h] = [interpolater(sl, el), interpolater(sc, ec), interpolater(sh, eh)];
+    return RGB2Oklch([l, c, h]);
+}
+
 export function interpolateColorEventValue(event: IEvent<RGBcolor> & ITimeSegment, seconds: number): RGBcolor {
     const startSeconds = event.cachedStartSeconds;
     const endSeconds = event.cachedEndSeconds;
-    const { bezier, bezierPoints, start, end, easingType, easingLeft, easingRight, startTime, endTime } = event;
-    const _interpolate = (part: 0 | 1 | 2) => {
-        const e = {
-            bezier,
-            bezierPoints: [...bezierPoints] as BezierPoints,
-            start: start[part],
-            end: end[part],
-            easingType,
-            easingLeft,
-            easingRight,
-            startTime,
-            endTime,
-            cachedStartSeconds: event.cachedStartSeconds,
-            cachedEndSeconds: event.cachedEndSeconds,
-            linkgroup: 0,
-            isDisabled: false,
-        };
-        return interpolateNumberEventValue(e, seconds);
-    };
+    const { start, end } = event;
 
     if (endSeconds <= seconds) {
         return end;
@@ -937,11 +934,14 @@ export function interpolateColorEventValue(event: IEvent<RGBcolor> & ITimeSegmen
         return start;
     }
     else {
-        return [
-            _interpolate(0),
-            _interpolate(1),
-            _interpolate(2)
-        ];
+        const easingFunction = getEasingFunctionOfNumberEvent(event as any);
+        return interpolateColorOklch(start, end, (s: number, e: number) => {
+            const dx = endSeconds - startSeconds;
+            const dy = e - s;
+            const sx = seconds - startSeconds;
+            const easingFactor = easingFunction(sx / dx);
+            return s + easingFactor * dy;
+        });
     }
 }
 
