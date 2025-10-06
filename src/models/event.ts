@@ -915,11 +915,18 @@ export function interpolateNumberValue(s: number, e: number, st: number, et: num
     return s + easingFactor * dy;
 }
 
+function lerpUnitHue(a: number, b: number, t: number): number {
+    let da = b - a;
+    if (da >  0.5) da -= 1;
+    if (da < -0.5) da += 1;
+    return a + t * da;
+}
+
 export function interpolateColorOklch(sColor: RGBcolor, eColor: RGBcolor, interpolater: Function = (x: number) => x): RGBcolor {
-    const [sl, sc, sh] = Oklch2RGB(sColor);
-    const [el, ec, eh] = Oklch2RGB(eColor);
-    const [l, c, h] = [interpolater(sl, el), interpolater(sc, ec), interpolater(sh, eh)];
-    return RGB2Oklch([l, c, h]);
+    const [sl, sc, sh] = RGB2Oklch(sColor);
+    const [el, ec, eh] = RGB2Oklch(eColor);
+    const [l, c, h] = [interpolater(sl, el), interpolater(sc, ec), interpolater(sh, eh, true)];
+    return Oklch2RGB([l, c, h]);
 }
 
 export function interpolateColorEventValue(event: IEvent<RGBcolor> & ITimeSegment, seconds: number): RGBcolor {
@@ -935,12 +942,13 @@ export function interpolateColorEventValue(event: IEvent<RGBcolor> & ITimeSegmen
     }
     else {
         const easingFunction = getEasingFunctionOfNumberEvent(event as any);
-        return interpolateColorOklch(start, end, (s: number, e: number) => {
+        return interpolateColorOklch(start, end, (s: number, e: number, is_hue: boolean = false) => {
             const dx = endSeconds - startSeconds;
             const dy = e - s;
             const sx = seconds - startSeconds;
             const easingFactor = easingFunction(sx / dx);
-            return s + easingFactor * dy;
+            if (!is_hue) return s + easingFactor * dy;
+            else return lerpUnitHue(s, e, easingFactor);
         });
     }
 }
